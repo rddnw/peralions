@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pera Lions</title>
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Pera Lions">
+<script src="config.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<style>
+:root{
+  --bg:#f4f4f4; --card:#ffffff; --ink:#111111; --ink2:#4a4a4a; --muted:#7a7a7a; --line:#e2e2e2; --surface:#fafafa;
+  --black:#111111; --red:#e10600; --red-dark:#b40500; --on-red:#ffffff;
+  --present:#1d7f45; --present-bg:#e4f3ea; --late:#a86a00; --late-bg:#fbefd6; --exc:#555555; --exc-bg:#ececec;
+  --s-gym:#2b2b2b; --s-ground:#e10600; --card-glass:rgba(255,255,255,.86);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0c0c0c; --card:#171717; --ink:#f2f2f2; --ink2:#c4c4c4; --muted:#8c8c8c; --line:#2c2c2c; --surface:#121212;
+    --red:#ff2a1f; --red-dark:#e10600;
+    --present:#55c785; --present-bg:#16301f; --late:#e3a63a; --late-bg:#3a2c10; --exc:#bdbdbd; --exc-bg:#2a2a2a;
+    --s-gym:#d6d6d6; --s-ground:#ff3b30; --card-glass:rgba(23,23,23,.86);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.display{font-family:Oswald,Impact,"Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.03em}
+header.top{position:sticky;top:0;z-index:5;background:var(--black);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:3px solid var(--red)}
+header .brand{display:flex;align-items:center;gap:10px;font-family:Oswald,Impact,sans-serif;font-weight:700;font-size:19px;letter-spacing:.04em;text-transform:uppercase}
+header .brand img{width:36px;height:36px;border-radius:8px;background:#fff}
+header .brand img[src=""]{display:none}
+/* Team logo watermark in the page background */
+#bgLogo{position:fixed;inset:0;z-index:0;pointer-events:none;background-repeat:no-repeat;background-position:center 58%;
+  background-size:min(88vw,560px);opacity:.09;mix-blend-mode:multiply;background-image:url('logo.jpg')}
+@media (prefers-color-scheme: dark){ #bgLogo{filter:grayscale(1) invert(1);mix-blend-mode:screen;opacity:.07} }
+main{position:relative;z-index:1}
+.card{background:var(--card-glass) !important;backdrop-filter:blur(1px)}
+header .who{font-size:13px;display:flex;gap:8px;align-items:center}
+header .who button{background:transparent;border:1px solid #666;color:#fff;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+nav.tabs{display:flex;gap:4px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:55px;z-index:4;overflow-x:auto}
+nav.tabs button{flex:1;min-width:max-content;border:0;background:transparent;color:var(--ink2);padding:9px 12px;border-radius:8px;font:600 14px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+nav.tabs button.on{background:var(--red);color:var(--on-red)}
+main{max-width:860px;margin:0 auto;padding:14px 16px 96px}
+h2{font:600 19px Oswald,sans-serif;text-transform:uppercase;letter-spacing:.03em;margin:2px 0 10px}
+h3{font:600 15px Oswald,sans-serif;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px;color:var(--ink2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:13px;font-weight:500;color:var(--ink2);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-offset:-1px}
+textarea{resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.row{display:flex;gap:8px;align-items:center}
+.row > *{flex:1;min-width:0}
+.row > .btn{flex:0 0 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.btn.primary:active{background:var(--red-dark)}
+.btn.dark{background:var(--black);border-color:var(--black);color:#fff}
+.btn.danger{color:var(--red)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.block{width:100%;margin-top:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:4px}
+.seg button{flex:1;border:0;background:var(--surface);color:var(--ink2);padding:10px;font:600 14px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.seg button.on{background:var(--black);color:#fff}
+@media (prefers-color-scheme: dark){ .seg button.on{background:var(--red)} }
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.chip.on{background:var(--black);border-color:var(--black);color:#fff;font-weight:600}
+@media (prefers-color-scheme: dark){ .chip.on{background:var(--red);border-color:var(--red)} }
+.chip.static{cursor:default}
+.muted{color:var(--muted);font-size:13px}
+.tag{display:inline-block;font:600 11px Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 7px;background:var(--s-gym);color:var(--card)}
+.tag.ground{background:var(--red);color:#fff}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--present-bg);color:var(--present)}
+.pill.pub{background:var(--late-bg);color:var(--late)}
+.pill.gray{background:var(--exc-bg);color:var(--exc)}
+.pill.red{background:var(--red);color:#fff}
+.sess-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.sess{border-left:4px solid var(--s-gym)} .sess.ground{border-left-color:var(--red)}
+.pre{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;margin-top:8px;font-size:14px}
+.batch{margin-bottom:14px}
+.batch-h{display:flex;justify-content:space-between;align-items:center;font:600 15px Oswald,sans-serif;text-transform:uppercase;letter-spacing:.04em;padding:6px 2px;border-bottom:2px solid var(--black);margin-bottom:6px}
+@media (prefers-color-scheme: dark){ .batch-h{border-bottom-color:var(--red)} }
+.prow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--card);cursor:pointer;user-select:none}
+.prow .nm small{display:block;color:var(--muted);font-size:12px}
+.prow .st{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--bg);color:var(--muted);min-width:70px;text-align:center}
+.prow.Present{background:var(--present-bg);border-color:var(--present)} .prow.Present .st{background:var(--present);color:#fff}
+.prow.Late{background:var(--late-bg);border-color:var(--late)} .prow.Late .st{background:var(--late);color:#fff}
+.prow.Excused{background:var(--exc-bg);border-color:var(--exc)} .prow.Excused .st{background:var(--exc);color:var(--card)}
+.sticky-bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:3px solid var(--red);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;justify-content:space-between;z-index:6}
+.sticky-bar .count{font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--ink2);font-weight:600;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--red);border-radius:10px;padding:12px}
+.kpi .v{font:700 28px Oswald,sans-serif;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--ink2)}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px}
+.bar > i{display:block;height:100%;background:var(--red);border-radius:4px}
+.band-High{color:var(--present);font-weight:700} .band-Medium{color:var(--late);font-weight:700} .band-Low{color:var(--red);font-weight:700}
+.chart{width:100%;height:280px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.modal.hidden{display:none}
+.modal-box{background:var(--card);width:100%;max-width:640px;max-height:90vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px;border-top:4px solid var(--red)}
+@media(min-width:700px){.modal{align-items:center}.modal-box{border-radius:14px}}
+#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--black);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:90%;border-left:4px solid var(--red)}
+#toast.show{opacity:1} #toast.err{background:var(--red);border-left-color:var(--black)}
+#loader{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--red);z-index:40;display:none;animation:ld 1s ease-in-out infinite alternate}
+@keyframes ld{from{opacity:.3}to{opacity:1}}
+.login{max-width:380px;margin:20px auto;text-align:center}
+.login img{width:150px;height:150px;display:block;margin:0 auto 12px;border-radius:24px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.login .card{text-align:left}
+.logrow,.loghead{display:grid;grid-template-columns:1.6fr .7fr .7fr .9fr .7fr;gap:6px}
+.logrow{margin-bottom:6px} .logrow input{padding:8px 6px}
+.loghead{font-size:11px;color:var(--muted);padding:0 2px}
+.empty{color:var(--muted);text-align:center;padding:20px}
+.right{text-align:right}
+.note{font-size:12px;color:var(--muted);margin-top:2px}
+</style>
+</head>
+<body>
+<div id="loader"></div>
+<div id="bgLogo"></div>
+<header class="top">
+  <div class="brand"><img src="logo.jpg" alt="" id="logoImg"><span id="brandName">Pera Lions</span></div>
+  <div class="who" id="who"></div>
+</header>
+<nav class="tabs" id="tabs" style="display:none"></nav>
+<main id="app"><div class="empty">Loading...</div></main>
+<div id="toast"></div>
+<div id="modal" class="modal hidden" onclick="if(event.target===this)closeModal()"><div class="modal-box" id="modalBody"></div></div>
+
+<script>
+/* ================= State & helpers ================= */
+const S = { user:null, token:null, data:null, tab:null, form:null, att:null, ana:null, pdata:null, chartsReady:false };
+const $ = s => document.querySelector(s);
+const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const STORE = 'peralions_user';
+function store(k, v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
+
+let loadingN = 0;
+function loading(on){ loadingN += on ? 1 : -1; $('#loader').style.display = loadingN > 0 ? 'block' : 'none'; }
+function toast(msg, err){ const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2600); }
+
+const API_URL = (window.PERA_API_URL || '').trim();
+const MODE = new URLSearchParams(location.search).get('p') === 'admin' ? 'admin' : 'player';
+
+async function api(fn, ...args){
+  if(!API_URL || API_URL.indexOf('PASTE') >= 0){ toast('App not set up: put the Apps Script URL in config.js', true); throw new Error('NO_API'); }
+  loading(true);
+  try{
+    const r = await fetch(API_URL, { method:'POST', body: JSON.stringify({ fn, args }) });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'Server error');
+    return j.result;
+  }catch(e){
+    const m = (e && e.message) || String(e);
+    if(m.indexOf('SESSION_EXPIRED') >= 0){ toast('Please log in again', true); doLogout(true); }
+    else if(m.indexOf('Failed to fetch') >= 0 || m.indexOf('NetworkError') >= 0 || m.indexOf('Load failed') >= 0) toast('No connection - showing saved data', true);
+    else if(m !== 'NO_API') toast(m.replace(/^Exception:\s*/, ''), true);
+    throw e;
+  }finally{ loading(false); }
+}
+
+function prettyDate(ymd){
+  if(!ymd) return '';
+  const [y,m,d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',timeZone:'UTC'});
+}
+function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addDays(ymd, n){ const [y,m,d] = ymd.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); }
+const tag = t => `<span class="tag ${t==='Ground'?'ground':''}">${esc(t)}</span>`;
+const splitAreas = s => String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+const numSort = (a,b) => (isNaN(a)||isNaN(b)) ? String(a).localeCompare(String(b)) : Number(a)-Number(b);
+const v = x => (x === null || x === undefined || x === '') ? '-' : x;
+const team = () => (S.user && S.user.team) || 'Pera Lions';
+
+function openModal(html){ $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); }
+function closeModal(){ $('#modal').classList.add('hidden'); }
+
+/* ================= Copy / WhatsApp ================= */
+function showMsg(title, text){
+  S.msg = text;
+  openModal(`<h2>${esc(title)}</h2>
+    <textarea id="msgText" rows="14" readonly>${esc(text)}</textarea>
+    <div class="actions">
+      <button class="btn primary" onclick="copyMsg()">Copy message</button>
+      <a class="btn dark" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Open WhatsApp</a>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>`);
+}
+function copyText(txt, ta){
+  const fallback = () => {
+    let el = ta;
+    if(!el){ el = document.createElement('textarea'); el.value = txt; document.body.appendChild(el); }
+    el.removeAttribute('readonly'); el.select(); el.setSelectionRange(0, txt.length);
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){}
+    if(ta) ta.setAttribute('readonly',''); else el.remove();
+    toast(ok ? 'Copied - paste it in WhatsApp' : 'Press and hold the text to copy', !ok);
+  };
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(()=>toast('Copied - paste it in WhatsApp'), fallback);
+  else fallback();
+}
+function copyMsg(){ copyText(S.msg, $('#msgText')); }
+
+/* ================= Login ================= */
+function start(){
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  const saved = store(STORE);
+  if(saved && saved.token){ S.user = saved; S.token = saved.token; afterLogin(); }
+  else renderLogin(MODE);
+}
+
+/* Google Charts is only downloaded the first time a chart is needed. */
+function loadCharts(){
+  if(S.chartsReady){ S.drawCharts && S.drawCharts(); return; }
+  if(S.chartsLoading) return;
+  S.chartsLoading = true;
+  const sc = document.createElement('script');
+  sc.src = 'https://www.gstatic.com/charts/loader.js';
+  sc.onload = () => {
+    google.charts.load('current', {packages:['corechart']});
+    google.charts.setOnLoadCallback(() => { S.chartsReady = true; if(S.drawCharts) S.drawCharts(); });
+  };
+  document.head.appendChild(sc);
+}
+
+function renderLogin(kind){
+  S.loginKind = kind;
+  $('#tabs').style.display = 'none'; $('#who').innerHTML = '';
+  $('#app').innerHTML = `<div class="login">
+    <img src="logo.jpg" alt="Pera Lions logo">
+    <div class="card">
+      <h2>${kind === 'admin' ? 'Captain / Admin login' : 'Player login'}</h2>
+      <div class="seg"><button class="${kind==='player'?'on':''}" onclick="renderLogin('player')">Player</button><button class="${kind==='admin'?'on':''}" onclick="renderLogin('admin')">Captain / Admin</button></div>
+      ${kind==='player' ? '<label>Player ID</label><input id="lId" placeholder="e.g. R012" autocapitalize="characters">' : ''}
+      <label>PIN</label><input id="lPin" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn primary block" onclick="doLogin()">Log in</button>
+      <p class="muted">${kind==='player' ? 'Get your ID and PIN from the captain.' : 'Admins are listed in the Admins tab of the sheet.'}</p>
+    </div></div>`;
+}
+
+async function doLogin(){
+  const id = $('#lId') ? $('#lId').value : '', pin = $('#lPin').value;
+  const u = await api('login', S.loginKind, id, pin);
+  S.user = u; S.token = u.token; store(STORE, u); afterLogin();
+}
+
+function doLogout(silent){
+  if(S.user) store(cacheKey(), null);
+  store(STORE, null); Object.assign(S, {user:null, token:null, data:null, pdata:null, ana:null, tab:null});
+  renderLogin(S.loginKind || MODE);
+}
+
+const cacheKey = () => 'peralions_cache_' + S.user.role + '_' + S.user.id;
+
+async function afterLogin(){
+  $('#brandName').textContent = team();
+  $('#who').innerHTML = `<span>${esc(S.user.name)}</span><button onclick="doLogout()">Log out</button>`;
+  const admin = S.user.role === 'admin';
+  const cached = store(cacheKey());
+  if(cached){                       // open instantly with the last saved data
+    if(admin) S.data = cached; else S.pdata = cached;
+    setTab(admin ? 'sessions' : 'upcoming');
+  } else {
+    $('#app').innerHTML = '<div class="empty">Loading...</div>';
+  }
+  try{
+    const fresh = await api(admin ? 'getAdminData' : 'getPlayerData', S.token);
+    if(!S.user) return;
+    if(admin) S.data = fresh; else S.pdata = fresh;
+    if(!cached) setTab(admin ? 'sessions' : 'upcoming');
+    else refreshView();
+  }catch(e){
+    if(!cached && S.user) $('#app').innerHTML = '<div class="empty">Could not load. Check your connection and <a href="#" onclick="afterLogin();return false">try again</a>.</div>';
+  }
+}
+
+/* Re-draw with new data, unless the user is typing in a field. */
+function refreshView(){
+  const el = document.activeElement;
+  if(el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) { saveCache(); return; }
+  if(S.tab === 'sessions') syncForm();
+  if(S.tab === 'attend' || S.tab === 'analysis') { saveCache(); return; }
+  render();
+}
+function saveCache(){
+  if(!S.user) return;
+  const d = S.user.role === 'admin' ? S.data : S.pdata;
+  if(d) store(cacheKey(), d);
+}
+
+/* ================= Tabs ================= */
+const ADMIN_TABS = [['sessions','Sessions'],['squad','Squad'],['analysis','Analysis']];
+const PLAYER_TABS = [['upcoming','Sessions'],['log','Gym log'],['stats','My stats']];
+
+function setTab(t){
+  S.tab = t; S.drawCharts = null; window.scrollTo(0,0);
+  const tabs = S.user.role === 'admin' ? ADMIN_TABS : PLAYER_TABS;
+  const nav = $('#tabs');
+  nav.style.display = t === 'attend' ? 'none' : 'flex';
+  nav.innerHTML = tabs.map(([k,l]) => `<button class="${k===t?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+  render();
+}
+function render(){
+  saveCache();
+  const f = { sessions:renderSessions, attend:renderAttend, squad:renderSquad, analysis:renderAnalysis,
+              upcoming:renderUpcoming, log:renderLog, stats:renderStats }[S.tab];
+  f && f();
+}
+
+/* =========================================================
+   ADMIN - Sessions (plan & publish)
+   ========================================================= */
+function blankForm(){ return { SessionID:'', Date:todayStr(), Time:'', Type:'Gym', focus:[], Plan:'' }; }
+function syncForm(){
+  if(!$('#fDate')) return;
+  S.form.Date = $('#fDate').value; S.form.Time = $('#fTime').value; S.form.Plan = $('#fPlan').value;
+}
+
+function renderSessions(){
+  const d = S.data; if(!S.form) S.form = blankForm();
+  const f = S.form;
+  const areas = d.focusAreas.filter(a => a.Type === f.Type).map(a => a.Area);
+  f.focus.forEach(x => { if(areas.indexOf(x) < 0) areas.push(x); });
+  const upcoming = d.sessions.filter(s => s.Status !== 'Completed').slice().reverse();
+  const done = d.sessions.filter(s => s.Status === 'Completed').slice(0, 40);
+  $('#app').innerHTML = `
+    <section class="card">
+      <h2>${f.SessionID ? 'Edit session' : 'Plan & publish a session'}</h2>
+      <div class="grid2">
+        <div><label>Date</label><input type="date" id="fDate" value="${esc(f.Date)}"></div>
+        <div><label>Time</label><input type="time" id="fTime" value="${esc(f.Time)}"></div>
+      </div>
+      <label>Session type</label>
+      <div class="seg">${['Gym','Ground'].map(x => `<button class="${f.Type===x?'on':''}" onclick="setFType('${x}')">${x}</button>`).join('')}</div>
+      <label>Focus areas (tap to select)</label>
+      <div class="chips">${areas.map(a => `<span class="chip ${f.focus.indexOf(a)>=0?'on':''}" onclick="toggleFocus(this.dataset.a)" data-a="${esc(a)}">${esc(a)}</span>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><input id="newArea" placeholder="Add a new ${f.Type.toLowerCase()} focus area"><button class="btn sm" onclick="addArea()">Add</button></div>
+      <label>Plan / workout (players will see this)</label>
+      <textarea id="fPlan" rows="4" placeholder="e.g. Bench 4x6, Pull ups 4x8, Core circuit">${esc(f.Plan)}</textarea>
+      <div class="actions">
+        <button class="btn primary" onclick="publishSession()">${f.SessionID ? 'Save changes' : 'Publish session'}</button>
+        ${f.SessionID ? '<button class="btn" onclick="S.form=blankForm();render()">Cancel</button>' : ''}
+      </div>
+    </section>
+    <h3>Upcoming / not yet marked (${upcoming.length})</h3>
+    ${upcoming.map(sessCard).join('') || '<div class="empty">No upcoming sessions. Publish one above.</div>'}
+    <h3>Completed</h3>
+    ${done.map(sessCard).join('') || '<div class="empty">Nothing yet.</div>'}`;
+}
+
+function sessCard(s){
+  const done = s.Status === 'Completed';
+  return `<div class="card sess ${s.Type.toLowerCase()}">
+    <div class="sess-h"><span>${tag(s.Type)} <b>${prettyDate(s.Date)}</b> ${esc(s.Time)}</span>
+      ${done ? `<span class="pill">${s.count} attended</span>` : `<span class="pill pub">Published</span>`}</div>
+    ${s.FocusAreas ? `<div class="muted" style="margin-top:4px">Focus: ${esc(s.FocusAreas)}</div>` : ''}
+    ${s.Notes ? `<div class="muted">Notes: ${esc(s.Notes)}</div>` : ''}
+    ${!done && (s.going || s.notGoing) ? `<div class="muted">Availability: ${s.going} going, ${s.notGoing} not going</div>` : ''}
+    <div class="actions">
+      <button class="btn sm primary" onclick="openAttend('${s.SessionID}')">${done ? 'Edit attendance' : 'Mark attendance'}</button>
+      ${done ? '' : `<button class="btn sm" onclick="announce('${s.SessionID}')">Announcement</button>`}
+      <button class="btn sm" onclick="editSession('${s.SessionID}')">Edit</button>
+      <button class="btn sm danger" onclick="delSession('${s.SessionID}')">Delete</button>
+    </div></div>`;
+}
+
+function setFType(t){ syncForm(); if(S.form.Type !== t){ S.form.Type = t; S.form.focus = []; } render(); }
+function toggleFocus(a){ syncForm(); const i = S.form.focus.indexOf(a); i>=0 ? S.form.focus.splice(i,1) : S.form.focus.push(a); render(); }
+async function addArea(){
+  syncForm(); const a = $('#newArea').value.trim(); if(!a) return;
+  S.data = await api('saveFocusArea', S.token, a, S.form.Type);
+  if(S.form.focus.indexOf(a) < 0) S.form.focus.push(a);
+  render();
+}
+async function publishSession(){
+  syncForm(); const f = S.form;
+  const r = await api('saveSession', S.token, { SessionID:f.SessionID, Date:f.Date, Time:f.Time, Type:f.Type, FocusAreas:f.focus, Plan:f.Plan });
+  S.data = r.data; S.form = blankForm(); render();
+  showMsg('Session published - announce it', r.message);
+}
+function editSession(id){
+  const s = S.data.sessions.find(x => x.SessionID === id);
+  S.form = { SessionID:s.SessionID, Date:s.Date, Time:s.Time, Type:s.Type, focus:splitAreas(s.FocusAreas), Plan:s.Plan };
+  render(); window.scrollTo(0,0);
+}
+async function delSession(id){
+  if(!confirm('Delete this session and its attendance, ratings and feedback?')) return;
+  S.data = await api('deleteSession', S.token, id); render(); toast('Deleted');
+}
+async function announce(id){ showMsg('Announcement message', await api('getAnnouncement', S.token, id)); }
+
+/* =========================================================
+   ADMIN - Attendance marking
+   ========================================================= */
+const CYCLE = ['', 'Present', 'Late', 'Excused'];
+const LABEL = { '':'Absent', Present:'Present', Late:'Late', Excused:'Excused' };
+
+async function openAttend(id){
+  const r = await api('getSessionDetail', S.token, id);
+  S.att = { session:r.session, map:r.attendance || {}, ratings:r.ratings, avail:r.availability || {}, feedback:r.feedback || [],
+            focus:splitAreas(r.session.FocusAreas), rArea:null, pending:{} };
+  setTab('attend');
+}
+
+function activePlayersByBatch(){
+  const g = {};
+  S.data.players.filter(p => p.Active).forEach(p => (g[p.Batch] = g[p.Batch] || []).push(p));
+  return Object.keys(g).sort(numSort).map(b => [b, g[b].sort((x,y)=>x.Name.localeCompare(y.Name))]);
+}
+function availNote(pid){
+  const a = S.att.avail[pid]; if(!a) return '';
+  return a.Status === 'Going' ? 'Said: going' : 'Said: not going' + (a.Reason ? ' - ' + a.Reason : '');
+}
+
+function renderAttend(){
+  const a = S.att, s = a.session;
+  const areas = S.data.focusAreas.filter(x => x.Type === s.Type).map(x => x.Area);
+  a.focus.forEach(x => { if(areas.indexOf(x) < 0) areas.push(x); });
+  const groups = activePlayersByBatch();
+  const notGoing = Object.keys(a.avail).filter(k => a.avail[k].Status === 'Not going').length;
+  $('#app').innerHTML = `
+    <button class="btn sm" onclick="setTab('sessions')">Back</button>
+    <section class="card" style="margin-top:10px">
+      <h2>${tag(s.Type)} ${prettyDate(s.Date)} ${esc(s.Time)}</h2>
+      <label>What did you focus on? (update after the session)</label>
+      <div class="chips">${areas.map(x => `<span class="chip ${a.focus.indexOf(x)>=0?'on':''}" data-a="${esc(x)}" onclick="toggleAFocus(this)">${esc(x)}</span>`).join('')}</div>
+      <label>Notes (included in the WhatsApp message)</label>
+      <input id="aNotes" value="${esc(s.Notes)}" placeholder="e.g. Good intensity, new lineout calls">
+      ${notGoing ? `<div class="actions"><button class="btn sm" onclick="excuseUnavailable()">Mark the ${notGoing} who said "not going" as excused</button></div>` : ''}
+    </section>
+    <p class="muted">Tap a name to change: Absent, Present, Late, Excused.</p>
+    ${groups.map(([b, ps]) => `<div class="batch">
+      <div class="batch-h"><span>${esc(b)} Batch <span class="muted" id="bc-${esc(b)}"></span></span>
+        <button class="btn sm" onclick="allPresent('${esc(b)}')">All present</button></div>
+      ${ps.map(p => `<div class="prow ${a.map[p.PlayerID]||''}" id="pr-${p.PlayerID}" onclick="cycle('${p.PlayerID}')">
+        <span class="nm">${esc(p.Name)}${availNote(p.PlayerID) ? `<small>${esc(availNote(p.PlayerID))}</small>` : ''}</span><span class="st">${LABEL[a.map[p.PlayerID]||'']}</span></div>`).join('')}
+    </div>`).join('') || '<div class="empty">No players yet - add them in the Squad tab.</div>'}
+    <section class="card"><h3 style="margin-top:0">Captain ratings (optional)</h3>
+      <p class="muted">Rate players 1-10 in a focus area. It counts for a small part of the analysis.</p>
+      <div id="rateBox"></div></section>
+    ${feedbackCard()}
+    <div class="sticky-bar"><span class="count" id="aCount"></span><button class="btn primary" onclick="saveAttend()">Save & get WhatsApp message</button></div>`;
+  updateCounts();
+}
+
+function feedbackCard(){
+  const fb = S.att.feedback; if(!fb.length) return '';
+  const avg = k => { const xs = fb.map(f => Number(f[k])).filter(x => x > 0); return xs.length ? (xs.reduce((a,b)=>a+b,0)/xs.length).toFixed(1) : '-'; };
+  const name = pid => (S.data.players.find(p => p.PlayerID === pid) || {}).Name || pid;
+  const comments = fb.filter(f => f.Comment);
+  return `<section class="card"><h3 style="margin-top:0">Player feedback (${fb.length})</h3>
+    <div class="grid3"><div class="kpi"><div class="v">${avg('RPE')}</div><div class="l">Avg effort (RPE 1-10)</div></div>
+    <div class="kpi"><div class="v">${avg('Energy')}</div><div class="l">Avg energy (1-5)</div></div>
+    <div class="kpi"><div class="v">${avg('Soreness')}</div><div class="l">Avg soreness (1-5)</div></div></div>
+    ${comments.length ? `<table style="margin-top:8px">${comments.map(f => `<tr><td>${esc(name(f.PlayerID))}</td><td>${esc(f.Comment)}</td></tr>`).join('')}</table>` : ''}
+  </section>`;
+}
+
+function toggleAFocus(el){
+  const x = el.dataset.a, f = S.att.focus, i = f.indexOf(x);
+  i >= 0 ? f.splice(i,1) : f.push(x);
+  el.classList.toggle('on'); renderRateBox();
+}
+function setStatus(pid, st){
+  if(st) S.att.map[pid] = st; else delete S.att.map[pid];
+  const el = document.getElementById('pr-' + pid);
+  if(el){ el.className = 'prow ' + st; el.querySelector('.st').textContent = LABEL[st]; }
+}
+function cycle(pid){ const cur = S.att.map[pid] || ''; setStatus(pid, CYCLE[(CYCLE.indexOf(cur)+1) % CYCLE.length]); updateCounts(); }
+function allPresent(b){
+  const ps = S.data.players.filter(p => p.Active && p.Batch === b);
+  const all = ps.every(p => S.att.map[p.PlayerID] === 'Present');
+  ps.forEach(p => setStatus(p.PlayerID, all ? '' : 'Present'));
+  updateCounts();
+}
+function excuseUnavailable(){
+  Object.keys(S.att.avail).forEach(pid => { if(S.att.avail[pid].Status === 'Not going' && !S.att.map[pid]) setStatus(pid, 'Excused'); });
+  updateCounts(); toast('Marked as excused');
+}
+function updateCounts(){
+  const m = S.att.map; let here = 0;
+  activePlayersByBatch().forEach(([b, ps]) => {
+    const n = ps.filter(p => m[p.PlayerID] === 'Present' || m[p.PlayerID] === 'Late').length; here += n;
+    const el = document.getElementById('bc-' + b); if(el) el.textContent = `(${n}/${ps.length})`;
+  });
+  $('#aCount').textContent = `${here} attended`;
+  renderRateBox();
+}
+async function saveAttend(){
+  const a = S.att;
+  const r = await api('saveAttendance', S.token, a.session.SessionID, a.map, a.focus, $('#aNotes').value);
+  S.data = r.data; a.session.Notes = $('#aNotes').value;
+  showMsg('Attendance saved', r.message);
+}
+
+function renderRateBox(){
+  const a = S.att, box = $('#rateBox'); if(!box) return;
+  document.querySelectorAll('.rsel').forEach(s => { a.pending[s.dataset.area + '|' + s.dataset.pid] = s.value; });
+  if(!a.focus.length){ box.innerHTML = '<div class="muted">Select a focus area above first.</div>'; return; }
+  if(a.focus.indexOf(a.rArea) < 0) a.rArea = a.focus[0];
+  const here = S.data.players.filter(p => a.map[p.PlayerID] === 'Present' || a.map[p.PlayerID] === 'Late');
+  const cur = {}; a.ratings.filter(r => r.FocusArea === a.rArea).forEach(r => cur[r.PlayerID] = r.Score);
+  Object.keys(a.pending).forEach(k => { const [ar, pid] = k.split('|'); if(ar === a.rArea) cur[pid] = a.pending[k]; });
+  box.innerHTML = `<label>Focus area</label>
+    <select onchange="S.att.rArea=this.value;renderRateBox()">${a.focus.map(x => `<option ${x===a.rArea?'selected':''}>${esc(x)}</option>`).join('')}</select>
+    ${here.length ? `<table style="margin-top:8px">${here.map(p => `<tr><td>${esc(p.Name)} <span class="muted">${esc(p.Batch)}</span></td>
+      <td style="width:90px"><select data-pid="${p.PlayerID}" data-area="${esc(a.rArea)}" class="rsel"><option value="">-</option>
+      ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option ${cur[p.PlayerID]==n?'selected':''}>${n}</option>`).join('')}</select></td></tr>`).join('')}</table>
+      <button class="btn block" onclick="saveRatings()">Save ratings for ${esc(a.rArea)}</button>`
+      : '<div class="muted" style="margin-top:8px">Mark attendance first - only players who attended can be rated.</div>'}`;
+}
+async function saveRatings(){
+  const a = S.att, scores = {};
+  document.querySelectorAll('.rsel').forEach(s => { if(s.value) scores[s.dataset.pid] = Number(s.value); });
+  const r = await api('saveRatings', S.token, a.session.SessionID, a.rArea, scores);
+  a.ratings = r.ratings; a.pending = {}; toast('Ratings saved');
+}
+
+/* =========================================================
+   ADMIN - Squad
+   ========================================================= */
+function renderSquad(){
+  const d = S.data;
+  const groups = {};
+  d.players.forEach(p => (groups[p.Batch] = groups[p.Batch] || []).push(p));
+  const batchOpts = d.batches.filter(b => b.Active).map(b => `<option>${esc(b.BatchCode)}</option>`).join('');
+  const base = d.appUrl || '';
+  $('#app').innerHTML = `
+    <section class="card"><h2>Batches</h2>
+      <div class="chips">${d.batches.map(b => `<span class="chip ${b.Active?'on':''}" onclick="toggleBatch('${esc(b.BatchCode)}', ${!b.Active})">${esc(b.BatchCode)}</span>`).join('')}</div>
+      <p class="muted">Dark = active. Tap to hide an old batch.</p>
+      <div class="row"><input id="newBatch" placeholder="New batch, e.g. 26" inputmode="numeric"><button class="btn sm" onclick="addBatch()">Add batch</button></div>
+    </section>
+    <section class="card"><h2>Add players</h2>
+      <label>Batch</label><select id="bulkBatch">${batchOpts}</select>
+      <label>Names - one per line</label><textarea id="bulkNames" rows="5" placeholder="Kasun Perera&#10;Nuwan Silva"></textarea>
+      <button class="btn primary block" onclick="addBulk()">Add players</button>
+      <p class="muted">Each player gets an ID (R001, R002...) and a random 4-digit PIN for the player portal.</p>
+    </section>
+    <section class="card"><h2>Players (${d.players.filter(p=>p.Active).length} active)</h2>
+      ${Object.keys(groups).sort(numSort).map(b => `<h3>${esc(b)} Batch</h3><div class="tablewrap"><table>
+        <tr><th>Name</th><th>ID</th><th>PIN</th><th></th></tr>
+        ${groups[b].map(p => `<tr style="${p.Active?'':'opacity:.45'}"><td>${esc(p.Name)}${p.Position?` <span class="muted">${esc(p.Position)}</span>`:''}</td>
+          <td>${esc(p.PlayerID)}</td><td>${esc(p.PIN)}</td>
+          <td class="right" style="white-space:nowrap"><button class="btn sm" onclick="editPlayer('${p.PlayerID}')">Edit</button>
+          <button class="btn sm" onclick="sendLogin('${p.PlayerID}')">Login msg</button></td></tr>`).join('')}
+      </table></div>`).join('') || '<div class="empty">No players yet.</div>'}
+    </section>
+    <section class="card"><h2>Focus areas</h2>
+      ${['Gym','Ground'].map(t => `<label>${t}</label><div class="chips">${d.focusAreas.filter(f=>f.Type===t).map(f=>`<span class="chip static">${esc(f.Area)}</span>`).join('')}</div>`).join('')}
+      <div class="row" style="margin-top:10px"><input id="faName" placeholder="New focus area"><select id="faType" style="max-width:110px"><option>Gym</option><option>Ground</option></select><button class="btn sm" onclick="addFA()">Add</button></div>
+    </section>
+    <section class="card"><h2>Links</h2>
+      <label>Player portal (share in the WhatsApp group)</label>
+      <div class="row"><input readonly value="${esc(base)}"><button class="btn sm" onclick="copyText('${esc(base)}')">Copy</button></div>
+      <label>Captain / admin portal</label>
+      <div class="row"><input readonly value="${esc(base)}?p=admin"><button class="btn sm" onclick="copyText('${esc(base)}?p=admin')">Copy</button></div>
+      <p class="muted">Admin PINs and settings (team name, analysis weights) are edited in the Admins and Settings tabs of the Google Sheet.</p>
+    </section>`;
+}
+async function toggleBatch(code, active){ S.data = await api('setBatchActive', S.token, code, active); render(); }
+async function addBatch(){ const c = $('#newBatch').value.trim(); if(!c) return; S.data = await api('saveBatch', S.token, c); render(); toast('Batch ' + c + ' added'); }
+async function addBulk(){ S.data = await api('savePlayersBulk', S.token, $('#bulkBatch').value, $('#bulkNames').value); render(); toast('Players added'); }
+async function addFA(){ S.data = await api('saveFocusArea', S.token, $('#faName').value, $('#faType').value); render(); }
+
+function editPlayer(id){
+  const p = S.data.players.find(x => x.PlayerID === id);
+  openModal(`<h2>Edit player</h2>
+    <label>Name</label><input id="epName" value="${esc(p.Name)}">
+    <div class="grid2"><div><label>Batch</label><select id="epBatch">${S.data.batches.map(b => `<option ${b.BatchCode===p.Batch?'selected':''}>${esc(b.BatchCode)}</option>`).join('')}</select></div>
+    <div><label>Position (optional)</label><input id="epPos" value="${esc(p.Position)}" placeholder="e.g. Prop"></div></div>
+    <label>PIN (4-6 digits)</label><input id="epPin" value="${esc(p.PIN)}" inputmode="numeric">
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="epActive" style="width:auto" ${p.Active?'checked':''}> Active (untick for players who left)</label>
+    <div class="actions"><button class="btn primary" onclick="savePlayerModal('${id}')">Save</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+}
+async function savePlayerModal(id){
+  S.data = await api('savePlayer', S.token, { PlayerID:id, Name:$('#epName').value, Batch:$('#epBatch').value,
+    Position:$('#epPos').value, PIN:$('#epPin').value, Active:$('#epActive').checked });
+  closeModal(); render(); toast('Saved');
+}
+function sendLogin(id){
+  const p = S.data.players.find(x => x.PlayerID === id);
+  showMsg('Login details for ' + p.Name, `Hi ${p.Name},\nYour ${S.data.settings.TeamName} player portal login:\nID: ${p.PlayerID}\nPIN: ${p.PIN}\nLink: ${S.data.appUrl}\n\nPlease keep your PIN private.`);
+}
+
+/* =========================================================
+   ADMIN - Analysis
+   ========================================================= */
+function renderAnalysis(){
+  const today = S.data.today || todayStr();
+  if(!S.anaRange) S.anaRange = { from: addDays(today, -90), to: today };
+  const A = S.ana;
+  $('#app').innerHTML = `
+    <section class="card"><div class="grid2">
+      <div><label>From</label><input type="date" id="anFrom" value="${S.anaRange.from}"></div>
+      <div><label>To</label><input type="date" id="anTo" value="${S.anaRange.to}"></div></div>
+      <div class="actions">
+        ${[30,60,90].map(n => `<button class="btn sm" onclick="anaPreset(${n})">Last ${n} days</button>`).join('')}
+        <button class="btn primary" onclick="runAnalysis()">Analyse</button>
+        ${A ? '<button class="btn" onclick="summaryMsg()">WhatsApp summary</button><button class="btn" onclick="exportAna()">Export to sheet</button>' : ''}
+      </div></section>
+    <div id="anaOut">${A ? anaHtml(A) : '<div class="empty">Choose a period and tap Analyse.</div>'}</div>`;
+  if(A){ S.drawCharts = () => drawAnaCharts(A); loadCharts(); }
+}
+function anaPreset(n){ const t = S.data.today || todayStr(); S.anaRange = { from:addDays(t,-n), to:t }; runAnalysis(); }
+async function runAnalysis(){
+  if($('#anFrom')) S.anaRange = { from:$('#anFrom').value, to:$('#anTo').value };
+  S.ana = await api('getAnalysis', S.token, S.anaRange.from, S.anaRange.to); render();
+}
+async function exportAna(){
+  const url = await api('exportAnalysis', S.token, S.anaRange.from, S.anaRange.to);
+  toast('Exported to the Analysis tab'); window.open(url, '_blank');
+}
+function summaryMsg(){
+  const A = S.ana, T = A.totals;
+  const top = A.players.filter(p => p.Attendance !== null).slice(0, 5);
+  const low = A.players.filter(p => p.Band === 'Low');
+  const L = [`*${team().toUpperCase()} - ATTENDANCE SUMMARY*`, `Period: ${prettyDate(A.from)} to ${prettyDate(A.to)}`,
+    `Sessions: ${T.Sessions} (${T.Gym} gym, ${T.Ground} ground)`, `Average attendance: ${v(T.AvgAttendance)}%`, '', '*Top attendance*'];
+  top.forEach((p, i) => L.push(`${i+1}. ${p.Name} (${p.Batch}) - ${p.Attendance}%`));
+  L.push('', '*By batch*');
+  A.batches.forEach(b => L.push(`${b.Batch} Batch: ${v(b.Attendance)}%`));
+  if(low.length){ L.push('', `*Below ${A.weights.low}% - please talk to the captain*`); low.forEach(p => L.push(`${p.Name} (${p.Batch}) - ${v(p.Attendance)}%`)); }
+  showMsg('Summary message', L.join('\n'));
+}
+
+function anaHtml(A){
+  const T = A.totals;
+  const bandRow = b => `<tr><td class="band-${b.Band}">${b.Band}</td><td>${b.Range}</td><td class="n">${b.Players}</td>
+    <td class="n">${v(b.AvgAttendance)}%</td><td class="n"><b>${v(b.AvgFocusScore)}</b></td><td class="n">${v(b.AvgRating)}</td>
+    <td class="n">${sign(b.AvgRatingChange)}</td><td class="n">${sign(b.AvgStrengthChange, '%')}</td></tr>`;
+  const rpeWeeks = A.weekly.filter(w => w.RPE !== null);
+  return `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${T.Sessions}</div><div class="l">Sessions (${T.Gym} gym, ${T.Ground} ground)</div></div>
+      <div class="kpi"><div class="v">${v(T.AvgAttendance)}%</div><div class="l">Average attendance</div></div>
+      <div class="kpi"><div class="v">${T.Players}</div><div class="l">Active players</div></div>
+    </div>
+    <section class="card"><h2>Attendance bands - does turning up pay off?</h2>
+      <p class="muted">Focus score = ${Math.round(A.weights.participation*100)}% participation in each focus area + ${Math.round(A.weights.rating*100)}% captain rating. Changes compare the first half of the period with the second half (split at ${prettyDate(A.mid)}).</p>
+      <div class="tablewrap"><table><tr><th>Band</th><th>Attendance</th><th class="n">Players</th><th class="n">Avg att.</th><th class="n">Focus score</th><th class="n">Avg rating</th><th class="n">Rating change</th><th class="n">Strength change</th></tr>
+      ${A.bands.map(bandRow).join('')}</table></div>
+      <div id="chBands" class="chart"></div>
+      <p class="muted">${insight(A)}</p>
+    </section>
+    <section class="card"><h2>Weekly attendance %</h2><div id="chWeekly" class="chart"></div>
+      ${rpeWeeks.length ? `<p class="muted">Average session effort (player RPE) per week: ${rpeWeeks.map(w => prettyDate(w.Week) + ' ' + w.RPE).join(', ')}</p>` : ''}</section>
+    <section class="card"><h2>Focus areas</h2>
+      <p class="muted">Focus score per area for each attendance band. Shows which skills suffer most when players miss sessions.</p>
+      <div class="tablewrap"><table><tr><th>Area</th><th>Type</th><th class="n">Sessions</th><th class="n">Avg particip.</th><th class="n">Avg rating</th><th class="n">High</th><th class="n">Medium</th><th class="n">Low</th></tr>
+      ${A.areas.map(a => `<tr><td>${esc(a.Area)}</td><td>${tag(a.Type)}</td><td class="n">${a.Sessions}</td><td class="n">${v(a.AvgParticipation)}%</td><td class="n">${v(a.AvgRating)}</td>
+        <td class="n">${v(a.HighScore)}</td><td class="n">${v(a.MediumScore)}</td><td class="n">${v(a.LowScore)}</td></tr>`).join('')}</table></div>
+    </section>
+    <section class="card"><h2>By batch</h2><div id="chBatch" class="chart" style="height:${Math.max(170, A.batches.length*52)}px"></div>
+      <div class="tablewrap"><table><tr><th>Batch</th><th class="n">Players</th><th class="n">Attendance</th><th class="n">Gym</th><th class="n">Ground</th></tr>
+      ${A.batches.map(b => `<tr><td>${esc(b.Batch)}</td><td class="n">${b.Players}</td><td class="n">${v(b.Attendance)}%</td><td class="n">${v(b.Gym)}%</td><td class="n">${v(b.Ground)}%</td></tr>`).join('')}</table></div>
+    </section>
+    <section class="card"><h2>Players</h2><p class="muted">Tap a player for the per-skill breakdown.</p>
+      <div class="tablewrap"><table><tr><th>Name</th><th>Batch</th><th class="n">Att.</th><th class="n">Gym</th><th class="n">Ground</th><th class="n">Focus</th><th class="n">Rating chg</th><th class="n">Strength chg</th><th class="n">Avg RPE</th><th>Band</th></tr>
+      ${A.players.map((p,i) => `<tr onclick="playerDetail(${i})" style="cursor:pointer"><td>${esc(p.Name)}</td><td>${esc(p.Batch)}</td>
+        <td class="n">${v(p.Attendance)}%</td><td class="n">${v(p.Gym)}%</td><td class="n">${v(p.Ground)}%</td><td class="n"><b>${v(p.FocusScore)}</b></td>
+        <td class="n">${sign(p.RatingChange)}</td><td class="n">${sign(p.StrengthChange,'%')}</td><td class="n">${v(p.AvgRPE)}</td><td class="band-${p.Band}">${p.Band}</td></tr>`).join('')}</table></div>
+    </section>`;
+}
+function sign(x, suf){ if(x === null || x === undefined) return '-'; return (x > 0 ? '+' : '') + x + (suf || ''); }
+function insight(A){
+  const h = A.bands[0], l = A.bands[2];
+  if(!h.Players || !l.Players || h.AvgFocusScore === null || l.AvgFocusScore === null) return 'Need players in both the High and Low bands for a comparison.';
+  let s = `High-attendance players average a focus score of <b>${h.AvgFocusScore}</b> vs <b>${l.AvgFocusScore}</b> for low-attendance players`;
+  if(h.AvgRatingChange !== null && l.AvgRatingChange !== null) s += `; their captain ratings changed by ${sign(h.AvgRatingChange)} vs ${sign(l.AvgRatingChange)}`;
+  if(h.AvgStrengthChange !== null && l.AvgStrengthChange !== null) s += `; logged strength changed ${sign(h.AvgStrengthChange,'%')} vs ${sign(l.AvgStrengthChange,'%')}`;
+  return s + '.';
+}
+function playerDetail(i){
+  const p = S.ana.players[i];
+  openModal(`<h2>${esc(p.Name)} <span class="muted">${esc(p.Batch)} Batch</span></h2>
+    <p>Attendance <b>${v(p.Attendance)}%</b> (${p.Attended}/${p.Possible}) - Focus score <b>${v(p.FocusScore)}</b> - <span class="band-${p.Band}">${p.Band}</span></p>
+    <div class="tablewrap"><table><tr><th>Focus area</th><th class="n">Attended</th><th class="n">Particip.</th><th class="n">Rating</th><th class="n">Score</th></tr>
+    ${p.areas.map(a => `<tr><td>${esc(a.Area)} <span class="muted">${a.Type}</span></td><td class="n">${a.Attended}/${a.Sessions}</td><td class="n">${v(a.Participation)}%</td><td class="n">${v(a.Rating)}</td><td class="n"><b>${v(a.Score)}</b></td></tr>`).join('')}</table></div>
+    ${p.lifts.length ? `<h3>Gym lifts (best weight, first half to second half)</h3><table>${p.lifts.map(l => `<tr><td>${esc(l.Exercise)}</td><td class="n">${v(l.First)} to ${v(l.Last)} kg</td><td class="n">${sign(l.Change,'%')}</td></tr>`).join('')}</table>` : ''}
+    <div class="actions"><button class="btn" onclick="closeModal()">Close</button></div>`);
+}
+
+/* ---------- Charts (Gym = dark, Ground = Pera red; one axis; built-in tooltips) ---------- */
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function baseOpts(){
+  const ink = cssVar('--ink2'), line = cssVar('--line');
+  return { backgroundColor:'transparent', legend:{ position:'top', textStyle:{ color:ink } },
+    chartArea:{ left:44, right:12, top:36, bottom:40 }, fontName:'Inter',
+    hAxis:{ textStyle:{ color:ink }, gridlines:{ color:'transparent' }, baselineColor:line },
+    vAxis:{ textStyle:{ color:ink }, gridlines:{ color:line }, baselineColor:line, minValue:0 } };
+}
+function drawAnaCharts(A){
+  if(!window.google || !google.visualization) return;
+  const gym = cssVar('--s-gym'), ground = cssVar('--s-ground'), red = cssVar('--red');
+  const el = id => document.getElementById(id);
+  if(el('chBands')){
+    const d = google.visualization.arrayToDataTable([['Band','Avg focus score',{role:'annotation'}]]
+      .concat(A.bands.map(b => [b.Band + ' (' + b.Players + ')', b.AvgFocusScore || 0, b.AvgFocusScore === null ? '' : String(b.AvgFocusScore)])));
+    const o = baseOpts(); o.colors = [red]; o.legend = { position:'none' }; o.bar = { groupWidth:'45%' }; o.vAxis.maxValue = 100;
+    o.title = 'Average focus score by attendance band'; o.titleTextStyle = { color:cssVar('--ink'), fontSize:13 };
+    new google.visualization.ColumnChart(el('chBands')).draw(d, o);
+  }
+  if(el('chWeekly') && A.weekly.length){
+    const d = google.visualization.arrayToDataTable([['Week','Gym %','Ground %']]
+      .concat(A.weekly.map(w => [prettyDate(w.Week).replace(/^\w+,?\s*/, ''), w.Gym, w.Ground])));
+    const o = baseOpts(); o.colors = [gym, ground]; o.lineWidth = 2; o.pointSize = 8; o.vAxis.maxValue = 100;
+    o.interpolateNulls = true; o.focusTarget = 'category';
+    new google.visualization.LineChart(el('chWeekly')).draw(d, o);
+  }
+  if(el('chBatch') && A.batches.length){
+    const d = google.visualization.arrayToDataTable([['Batch','Gym %','Ground %']]
+      .concat(A.batches.map(b => [b.Batch + ' Batch', b.Gym || 0, b.Ground || 0])));
+    const o = baseOpts(); o.colors = [gym, ground]; o.hAxis.maxValue = 100; o.hAxis.minValue = 0; o.chartArea.left = 76; o.bar = { groupWidth:'60%' };
+    o.vAxis.gridlines = { color:'transparent' }; o.hAxis.gridlines = { color:cssVar('--line') };
+    new google.visualization.BarChart(el('chBatch')).draw(d, o);
+  }
+}
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => S.drawCharts && S.chartsReady && S.drawCharts(), 250); });
+
+/* =========================================================
+   PLAYER - Sessions (upcoming + availability + feedback)
+   ========================================================= */
+function renderUpcoming(){
+  const d = S.pdata;
+  const needFb = d.recent.filter(s => s.my !== 'Absent' && s.my !== 'Excused' && !s.feedback && s.Date >= addDays(d.today, -3));
+  $('#app').innerHTML = `
+    <h2>Hi ${esc(d.me.name.split(' ')[0])}</h2>
+    ${needFb.length ? `<section class="card" style="border-left:4px solid var(--red)"><h3 style="margin-top:0">How did it go?</h3>
+      ${needFb.map(s => `<div class="row" style="margin-bottom:6px"><span>${tag(s.Type)} ${prettyDate(s.Date)}</span><button class="btn sm primary" onclick="openFeedback('${s.SessionID}')">Give feedback</button></div>`).join('')}
+    </section>` : ''}
+    <h3>Upcoming sessions</h3>
+    ${d.upcoming.map(s => `<div class="card sess ${s.Type.toLowerCase()}">
+      <div class="sess-h"><span>${tag(s.Type)} <b>${prettyDate(s.Date)}</b> ${esc(s.Time)}</span>${s.Date===d.today?'<span class="pill pub">Today</span>':''}</div>
+      ${s.FocusAreas ? `<div style="margin-top:4px">Focus: ${esc(s.FocusAreas)}</div>` : ''}
+      ${s.Plan ? `<div class="pre">${esc(s.Plan)}</div>` : ''}
+      <div class="actions">
+        <button class="btn sm ${s.avail && s.avail.Status==='Going'?'dark':''}" onclick="setAvail('${s.SessionID}','Going')">I'll be there</button>
+        <button class="btn sm ${s.avail && s.avail.Status==='Not going'?'dark':''}" onclick="setAvail('${s.SessionID}','Not going')">Can't make it</button>
+        ${s.Type==='Gym' ? `<button class="btn sm primary" onclick="S.logSession='${s.SessionID}';setTab('log')">Log this workout</button>` : ''}
+      </div>
+      ${s.avail ? `<div class="note">You said: ${esc(s.avail.Status)}${s.avail.Reason ? ' - ' + esc(s.avail.Reason) : ''}</div>` : ''}
+    </div>`).join('') || '<div class="empty">No sessions published yet.</div>'}
+    <h3>Recent sessions</h3>
+    <div class="card"><table>${d.recent.map(s => `<tr><td>${tag(s.Type)} ${prettyDate(s.Date)}<div class="muted">${esc(s.FocusAreas)}</div></td>
+      <td class="right"><span class="pill ${s.my==='Absent'?'red':s.my==='Excused'?'gray':''}">${esc(s.my)}</span>
+      ${s.my !== 'Absent' && s.my !== 'Excused' ? `<div><button class="btn sm" style="margin-top:4px" onclick="openFeedback('${s.SessionID}')">${s.feedback?'Edit feedback':'Feedback'}</button></div>` : ''}</td></tr>`).join('') || '<tr><td class="empty">None yet</td></tr>'}</table></div>`;
+}
+async function setAvail(id, status){
+  let reason = '';
+  if(status === 'Not going'){ reason = prompt('Reason (e.g. exam, injury, sick):') || ''; if(!reason.trim()) return; }
+  S.pdata = await api('setAvailability', S.token, id, status, reason); render(); toast('Thanks - the captain can see this');
+}
+function openFeedback(id){
+  const s = S.pdata.recent.find(x => x.SessionID === id);
+  const sel = (id, n, lo, hi) => `<select id="${id}"><option value="">-</option>${Array.from({length:hi-lo+1},(_,i)=>lo+i).map(k=>`<option>${k}</option>`).join('')}</select>`;
+  openModal(`<h2>Feedback: ${esc(s.Type)} ${prettyDate(s.Date)}</h2>
+    <label>How hard was it? (RPE: 1 very easy - 10 maximum effort)</label>${sel('fbRPE',0,1,10)}
+    <div class="grid2"><div><label>Energy (1 low - 5 high)</label>${sel('fbEnergy',0,1,5)}</div>
+    <div><label>Soreness (1 none - 5 very sore)</label>${sel('fbSore',0,1,5)}</div></div>
+    <label>Anything to tell the captain? (niggles, injuries, what you learned)</label><textarea id="fbComment" rows="3"></textarea>
+    <div class="actions"><button class="btn primary" onclick="sendFeedback('${id}')">Submit</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+}
+async function sendFeedback(id){
+  S.pdata = await api('saveFeedback', S.token, id, { RPE:$('#fbRPE').value, Energy:$('#fbEnergy').value, Soreness:$('#fbSore').value, Comment:$('#fbComment').value });
+  closeModal(); render(); toast('Feedback saved');
+}
+
+/* =========================================================
+   PLAYER - Gym log (draft auto-saved on the phone)
+   ========================================================= */
+const DRAFT = 'peralions_draft';
+function blankRow(){ return { Exercise:'', Sets:'', Reps:'', Weight:'', RPE:'' }; }
+function renderLog(){
+  const d = S.pdata;
+  let draft = store(DRAFT);
+  if(!draft || draft.pid !== d.me.id) draft = { pid:d.me.id, rows:[blankRow(), blankRow(), blankRow()], notes:'' };
+  if(S.logSession !== undefined){ draft.session = S.logSession; delete S.logSession; }
+  if(draft.session === undefined) draft.session = (d.gymSessions.find(s => s.Date === d.today) || {}).SessionID || '';
+  S.draft = draft; store(DRAFT, draft);
+  const sess = d.gymSessions.find(s => s.SessionID === draft.session);
+  const byDate = {};
+  d.logs.forEach(l => (byDate[l.Timestamp.slice(0,10)] = byDate[l.Timestamp.slice(0,10)] || []).push(l));
+  $('#app').innerHTML = `
+    <section class="card"><h2>Log gym work</h2>
+      <label>Session</label>
+      <select onchange="S.draft.session=this.value;saveDraft();renderLog()">
+        <option value="">Own workout (not a team session)</option>
+        ${d.gymSessions.map(s => `<option value="${s.SessionID}" ${s.SessionID===draft.session?'selected':''}>${prettyDate(s.Date)} ${esc(s.Time)} - ${esc(s.FocusAreas||'Gym')}</option>`).join('')}
+      </select>
+      ${sess && sess.Plan ? `<div class="pre">${esc(sess.Plan)}</div>` : ''}
+      <p class="muted">Fill it in during the session. It is saved on your phone until you submit.</p>
+      <div class="loghead"><span>Exercise</span><span>Sets</span><span>Reps</span><span>Kg</span><span>RPE</span></div>
+      <datalist id="exList">${d.exercises.map(e => `<option value="${esc(e)}">`).join('')}</datalist>
+      <div>${draft.rows.map((r,i) => `<div class="logrow">
+        <input list="exList" placeholder="Exercise" value="${esc(r.Exercise)}" oninput="dr(${i},'Exercise',this.value)">
+        <input inputmode="numeric" value="${esc(r.Sets)}" oninput="dr(${i},'Sets',this.value)">
+        <input inputmode="numeric" value="${esc(r.Reps)}" oninput="dr(${i},'Reps',this.value)">
+        <input inputmode="decimal" value="${esc(r.Weight)}" oninput="dr(${i},'Weight',this.value)">
+        <input inputmode="numeric" placeholder="1-10" value="${esc(r.RPE)}" oninput="dr(${i},'RPE',this.value)"></div>`).join('')}</div>
+      <button class="btn sm" onclick="S.draft.rows.push(blankRow());saveDraft();renderLog()">Add exercise</button>
+      <label>Notes (how did it feel?)</label><input value="${esc(draft.notes)}" oninput="S.draft.notes=this.value;saveDraft()">
+      <button class="btn primary block" onclick="submitLog()">Submit workout</button>
+      <p class="muted">RPE = how hard the set felt (1 easy, 10 maximum effort).</p>
+    </section>
+    <h3>My recent logs</h3>
+    ${Object.keys(byDate).slice(0, 15).map(dt => `<div class="card"><b>${prettyDate(dt)}</b><table>
+      ${byDate[dt].map(l => `<tr><td>${esc(l.Exercise)}</td><td class="n">${v(l.Sets)} x ${v(l.Reps)}</td><td class="n">${v(l.Weight)} kg</td><td class="n">RPE ${v(l.RPE)}</td>
+      <td class="right"><button class="btn sm danger" onclick="delLog('${esc(l.LogID)}')">Delete</button></td></tr>`).join('')}</table></div>`).join('') || '<div class="empty">No logs yet.</div>'}`;
+}
+function saveDraft(){ store(DRAFT, S.draft); }
+function dr(i, k, val){ S.draft.rows[i][k] = val; saveDraft(); }
+async function submitLog(){
+  const rows = S.draft.rows.filter(r => r.Exercise.trim()).map(r => Object.assign({}, r, { Notes:S.draft.notes }));
+  if(!rows.length) return toast('Add at least one exercise', true);
+  S.pdata = await api('saveGymLogs', S.token, S.draft.session, rows);
+  store(DRAFT, null); renderLog(); toast('Workout saved');
+}
+async function delLog(id){ if(!confirm('Delete this entry?')) return; S.pdata = await api('deleteGymLog', S.token, id); renderLog(); }
+
+/* =========================================================
+   PLAYER - My stats
+   ========================================================= */
+function renderStats(){
+  const d = S.pdata, m = d.stats;
+  if(!m){ $('#app').innerHTML = '<div class="empty">No stats yet.</div>'; return; }
+  const exs = {}; d.logs.forEach(l => { if(Number(l.Weight) > 0) (exs[l.Exercise] = exs[l.Exercise] || []).push(l); });
+  const exNames = Object.keys(exs).sort((a,b) => exs[b].length - exs[a].length);
+  if(!S.statEx || !exs[S.statEx]) S.statEx = exNames[0];
+  $('#app').innerHTML = `
+    <p class="muted">Last 90 days</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${v(m.Attendance)}%</div><div class="l">My attendance (${m.Attended}/${m.Possible}). Team average ${v(d.team.AvgAttendance)}%</div></div>
+      <div class="kpi"><div class="v">${v(m.Gym)}%</div><div class="l">Gym</div></div>
+      <div class="kpi"><div class="v">${v(m.Ground)}%</div><div class="l">Ground</div></div>
+      <div class="kpi"><div class="v">${v(m.FocusScore)}</div><div class="l">Focus score - <span class="band-${m.Band}">${m.Band}</span></div></div>
+    </div>
+    <section class="card"><h2>Focus areas</h2>
+      ${m.areas.map(a => `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><span>${esc(a.Area)} <span class="muted">${a.Type}</span></span>
+        <span class="muted right">${a.Attended}/${a.Sessions} sessions${a.Rating!==null?`, rating ${a.Rating}`:''}</span></div><div class="bar"><i style="width:${a.Participation||0}%"></i></div></div>`).join('') || '<div class="muted">No completed sessions yet.</div>'}
+    </section>
+    <section class="card"><h2>Strength progress</h2>
+      ${exNames.length ? `<select onchange="S.statEx=this.value;renderStats()">${exNames.map(e => `<option ${e===S.statEx?'selected':''}>${esc(e)}</option>`).join('')}</select>
+      <div id="chLift" class="chart"></div>` : '<div class="muted">Log your gym work to see progress here.</div>'}
+    </section>`;
+  if(exNames.length){
+    const pts = {}; exs[S.statEx].forEach(l => { const dt = l.Timestamp.slice(0,10); pts[dt] = Math.max(pts[dt]||0, Number(l.Weight)); });
+    S.drawCharts = () => {
+      const el = document.getElementById('chLift'); if(!el) return;
+      const data = google.visualization.arrayToDataTable([['Date','Best kg']].concat(Object.keys(pts).sort().map(k => [prettyDate(k), pts[k]])));
+      const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue;
+      o.title = S.statEx + ' - best weight per day (kg)'; o.titleTextStyle = { color:cssVar('--ink'), fontSize:13 };
+      new google.visualization.LineChart(el).draw(data, o);
+    };
+    loadCharts();
+  }
+}
+
+start();
+</script>
+</body>
+</html>
