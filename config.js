@@ -1,3 +1,3 @@
 // Pera Lions app settings.
-// Paste your Apps Script Web app URL between the quotes (it ends with /exec).
-window.PERA_API_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
+// Apps Script Web app URL (ends with /exec). It stays the same when you deploy a new version.
+window.PERA_API_URL = 'https://script.google.com/macros/s/AKfycbyyCeVlNQofayTukT9J1I9FFf2CRtkgVRWt_S2r-ZEd-9yBUYD_6O_tZvoozi-B8MZbcQ/exec';

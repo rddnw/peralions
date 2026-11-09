@@ -1,6 +1,6 @@
 // Pera Lions service worker: keeps the app on the phone so it opens instantly.
 // Bump VERSION whenever you change any app file, so phones pick up the update.
-const VERSION = 'peralions-v2';
+const VERSION = 'peralions-v3';
 const SHELL = ['./', 'index.html', 'config.js', 'logo.jpg', 'manifest.webmanifest',
                'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
