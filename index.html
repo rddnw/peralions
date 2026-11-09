@@ -129,6 +129,24 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .empty{color:var(--muted);text-align:center;padding:20px}
 .right{text-align:right}
 .note{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* v2 additions */
+nav.tabs{top:calc(55px + env(safe-area-inset-top));padding:8px 8px;gap:2px}
+nav.tabs button{padding:9px 8px;font-size:13px;letter-spacing:.03em}
+.nbadge{display:inline-block;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--red);color:#fff;font:700 11px Inter,sans-serif;margin-left:6px;padding:0 5px;vertical-align:middle}
+nav.tabs button.on .nbadge{background:#fff;color:var(--red)}
+.alert-card{border-left:4px solid var(--red) !important}
+.wa-card{text-align:left}
+.kpi.warn{border-top-color:var(--late)}
+.up{color:var(--present)} .down{color:var(--red)}
+.chart.small{height:200px}
+.vframe{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.vframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.actions .vframe{aspect-ratio:auto;background:none;width:auto;display:inline-flex}
+.actions .vframe iframe{position:static;width:100%;height:200px}
+.trow{padding:4px 0;border-bottom:1px solid var(--line)} .trow input{max-width:110px;flex:0 0 110px}
+.unseen{border-left:4px solid var(--red) !important}
+.test-card .grid3 b{font-size:16px}
 </style>
 </head>
 <body>
@@ -145,15 +163,16 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 
 <script>
 /* ================= State & helpers ================= */
-const S = { user:null, token:null, data:null, tab:null, form:null, att:null, ana:null, pdata:null, chartsReady:false };
+const S = { user:null, token:null, data:null, pdata:null, pub:null, tab:null, form:null, att:null, ana:null,
+            tests:null, videos:null, view:null, chartsReady:false };
 const $ = s => document.querySelector(s);
 const esc = s => String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const STORE = 'peralions_user';
+const STORE = 'peralions2_user';
 function store(k, v){ try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
 
 let loadingN = 0;
 function loading(on){ loadingN += on ? 1 : -1; $('#loader').style.display = loadingN > 0 ? 'block' : 'none'; }
-function toast(msg, err){ const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2600); }
+function toast(msg, err){ const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2800); }
 
 const API_URL = (window.PERA_API_URL || '').trim();
 const MODE = new URLSearchParams(location.search).get('p') === 'admin' ? 'admin' : 'player';
@@ -168,8 +187,8 @@ async function api(fn, ...args){
     return j.result;
   }catch(e){
     const m = (e && e.message) || String(e);
-    if(m.indexOf('SESSION_EXPIRED') >= 0){ toast('Please log in again', true); doLogout(true); }
-    else if(m.indexOf('Failed to fetch') >= 0 || m.indexOf('NetworkError') >= 0 || m.indexOf('Load failed') >= 0) toast('No connection - showing saved data', true);
+    if(m.indexOf('SESSION_EXPIRED') >= 0){ toast('Please log in again', true); doLogout(); }
+    else if(/Failed to fetch|NetworkError|Load failed/.test(m)) toast('No connection - showing saved data', true);
     else if(m !== 'NO_API') toast(m.replace(/^Exception:\s*/, ''), true);
     throw e;
   }finally{ loading(false); }
@@ -177,16 +196,20 @@ async function api(fn, ...args){
 
 function prettyDate(ymd){
   if(!ymd) return '';
-  const [y,m,d] = ymd.split('-').map(Number);
+  const [y,m,d] = String(ymd).slice(0,10).split('-').map(Number);
   return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',timeZone:'UTC'});
 }
+function shortDate(ymd){ const [y,m,d] = String(ymd).slice(0,10).split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'UTC'}); }
+function monthName(ym){ const [y,m] = ym.split('-').map(Number); return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('en-GB',{month:'short',year:'2-digit',timeZone:'UTC'}); }
 function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function addDays(ymd, n){ const [y,m,d] = ymd.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); }
+function daysBetween(a, b){ const f = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y,m-1,d); }; return Math.round((f(b)-f(a))/864e5); }
 const tag = t => `<span class="tag ${t==='Ground'?'ground':''}">${esc(t)}</span>`;
 const splitAreas = s => String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
 const numSort = (a,b) => (isNaN(a)||isNaN(b)) ? String(a).localeCompare(String(b)) : Number(a)-Number(b);
 const v = x => (x === null || x === undefined || x === '') ? '-' : x;
-const team = () => (S.user && S.user.team) || 'Pera Lions';
+const team = () => (S.user && S.user.team) || (S.pub && S.pub.team) || 'Pera Lions';
+function sign(x, suf){ if(x === null || x === undefined || x === '') return '-'; return (x > 0 ? '+' : '') + x + (suf || ''); }
 
 function openModal(html){ $('#modalBody').innerHTML = html; $('#modal').classList.remove('hidden'); }
 function closeModal(){ $('#modal').classList.add('hidden'); }
@@ -195,7 +218,7 @@ function closeModal(){ $('#modal').classList.add('hidden'); }
 function showMsg(title, text){
   S.msg = text;
   openModal(`<h2>${esc(title)}</h2>
-    <textarea id="msgText" rows="14" readonly>${esc(text)}</textarea>
+    <textarea id="msgText" rows="12" readonly>${esc(text)}</textarea>
     <div class="actions">
       <button class="btn primary" onclick="copyMsg()">Copy message</button>
       <a class="btn dark" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Open WhatsApp</a>
@@ -216,12 +239,199 @@ function copyText(txt, ta){
 }
 function copyMsg(){ copyText(S.msg, $('#msgText')); }
 
-/* ================= Login ================= */
+/* ================= Start & public info ================= */
 function start(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  S.pub = store('peralions2_pub');
   const saved = store(STORE);
   if(saved && saved.token){ S.user = saved; S.token = saved.token; afterLogin(); }
   else renderLogin(MODE);
+  loadPublic();
+}
+async function loadPublic(){
+  try{
+    S.pub = await api('getPublicInfo'); store('peralions2_pub', S.pub);
+    if(!S.user && /login|signup/.test(S.screen || '')) (S.screen === 'signup' ? renderSignup() : renderLogin(S.loginKind));
+  }catch(e){}
+}
+function waBlock(){
+  const link = S.pub && S.pub.whatsAppGroupLink;
+  if(!link) return '';
+  return `<div class="card wa-card"><b>Are you in the ${esc(team())} WhatsApp group?</b>
+    <p class="muted" style="margin:4px 0 8px">All session updates and attendance are posted there.</p>
+    <a class="btn dark sm" href="${esc(link)}" target="_blank" rel="noopener">Join the WhatsApp group</a></div>`;
+}
+
+/* ================= Login / sign up / forgot ================= */
+function authShell(inner){
+  S.view = null;
+  $('#tabs').style.display = 'none'; $('#who').innerHTML = '';
+  $('#app').innerHTML = `<div class="login"><img src="logo.jpg" alt="Pera Lions logo">${inner}</div>`;
+  window.scrollTo(0,0);
+}
+
+function renderLogin(kind){
+  S.loginKind = kind || 'player'; S.screen = 'login';
+  const player = S.loginKind === 'player';
+  authShell(`<div class="card">
+      <h2>${player ? 'Player login' : 'Captain / Admin login'}</h2>
+      <div class="seg"><button class="${player?'on':''}" onclick="renderLogin('player')">Player</button><button class="${!player?'on':''}" onclick="renderLogin('admin')">Captain / Admin</button></div>
+      ${player ? `<label>Mobile number</label><input id="lId" type="tel" inputmode="tel" placeholder="07XXXXXXXX" autocomplete="username">
+        <label>Password</label><input id="lPw" type="password" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">`
+      : `<label>Admin PIN</label><input id="lPw" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')doLogin()">`}
+      <button class="btn primary block" onclick="doLogin()">Log in</button>
+      ${player ? `<div class="actions" style="justify-content:space-between">
+        <button class="btn sm" onclick="renderSignup()">Create account</button>
+        <button class="btn sm" onclick="renderForgot()">Forgot password?</button></div>` : ''}
+    </div>${player ? waBlock() : ''}`);
+}
+
+async function doLogin(){
+  const id = $('#lId') ? $('#lId').value : '', pw = $('#lPw').value;
+  const u = await api('login', S.loginKind, id, pw);
+  setUser(u); afterLogin();
+}
+function setUser(u){ S.user = u; S.token = u.token; store(STORE, u); }
+
+function renderSignup(){
+  S.screen = 'signup';
+  const batches = (S.pub && S.pub.batches) || ['22','23','24','25','26'];
+  const link = S.pub && S.pub.whatsAppGroupLink;
+  authShell(`<div class="card">
+    <h2>Create your account</h2>
+    <label>Full name</label><input id="suName" placeholder="e.g. Kasun Perera" autocomplete="name">
+    <div class="grid2"><div><label>Batch</label><select id="suBatch"><option value="">Choose</option>${batches.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
+    <div><label>Position (optional)</label><input id="suPos" placeholder="e.g. Flanker"></div></div>
+    <label>Mobile number (you log in with this)</label><input id="suPhone" type="tel" inputmode="tel" placeholder="07XXXXXXXX">
+    <label>Password (at least 6 characters)</label><input id="suPw" type="password" autocomplete="new-password">
+    <label>Confirm password</label><input id="suPw2" type="password" autocomplete="new-password">
+    <label>Are you in the ${esc(team())} WhatsApp group?</label>
+    <div class="seg" id="suWa"><button data-v="yes" onclick="pickWa('yes')">Yes</button><button data-v="no" onclick="pickWa('no')">No</button></div>
+    <div id="suWaJoin" style="display:none" class="note">${link ? `Please join so you get all updates: <a href="${esc(link)}" target="_blank" rel="noopener">Join the WhatsApp group</a>` : 'Ask the captain to add you to the WhatsApp group.'}</div>
+    <button class="btn primary block" onclick="doSignup()">Create account</button>
+    <p class="muted">${(!S.pub || S.pub.requireApproval) ? 'The captain will approve your account before you can log in.' : ''}</p>
+    <button class="btn sm" onclick="renderLogin('player')">Back to login</button>
+  </div>`);
+}
+function pickWa(x){ S.suWa = x; document.querySelectorAll('#suWa button').forEach(b => b.classList.toggle('on', b.dataset.v === x)); $('#suWaJoin').style.display = x === 'no' ? 'block' : 'none'; }
+async function doSignup(){
+  if($('#suPw').value !== $('#suPw2').value) return toast('The two passwords do not match', true);
+  if(!S.suWa) return toast('Tell us if you are in the WhatsApp group', true);
+  const r = await api('signup', { Name:$('#suName').value, Batch:$('#suBatch').value, Position:$('#suPos').value,
+    Phone:$('#suPhone').value, Password:$('#suPw').value, InWhatsApp: S.suWa === 'yes' });
+  if(r.pending){
+    authShell(`<div class="card"><h2>Account created</h2>
+      <p>Thanks! The captain will approve your account soon. After that, log in with your mobile number and password.</p>
+      <button class="btn primary block" onclick="renderLogin('player')">Back to login</button></div>${S.suWa === 'no' ? waBlock() : ''}`);
+  } else { setUser(r.user); afterLogin(); }
+}
+
+function renderForgot(){
+  S.screen = 'forgot';
+  authShell(`<div class="card"><h2>Forgot password</h2>
+    <p class="muted">Send a request to the captain / admins. They will give you a temporary password (usually on WhatsApp).</p>
+    <label>Your mobile number</label><input id="fpPhone" type="tel" inputmode="tel" placeholder="07XXXXXXXX">
+    <label>Message (optional)</label><input id="fpNote" placeholder="e.g. new phone">
+    <button class="btn primary block" onclick="doForgot()">Send request</button>
+    <button class="btn sm" style="margin-top:8px" onclick="renderLogin('player')">Back to login</button></div>`);
+}
+async function doForgot(){
+  await api('requestReset', $('#fpPhone').value, $('#fpNote').value);
+  authShell(`<div class="card"><h2>Request sent</h2>
+    <p>If this number is registered, an admin will send you a temporary password. You will choose a new password when you log in.</p>
+    <button class="btn primary block" onclick="renderLogin('player')">Back to login</button></div>`);
+}
+
+function renderChangePw(forced){
+  S.screen = 'changepw';
+  const html = `<div class="card"><h2>${forced ? 'Choose your own password' : 'Change password'}</h2>
+    ${forced ? '<p class="muted">You logged in with a temporary password. Please set your own password to continue.</p>' : ''}
+    <label>${forced ? 'Temporary password' : 'Current password'}</label><input id="cpOld" type="password" autocomplete="current-password">
+    <label>New password (at least 6 characters)</label><input id="cpNew" type="password" autocomplete="new-password">
+    <label>Confirm new password</label><input id="cpNew2" type="password" autocomplete="new-password">
+    <button class="btn primary block" onclick="doChangePw(${forced})">Save password</button>
+    ${forced ? '<button class="btn sm" style="margin-top:8px" onclick="doLogout()">Log out</button>' : ''}</div>`;
+  if(forced) authShell(html); else return html;
+}
+async function doChangePw(forced){
+  if($('#cpNew').value !== $('#cpNew2').value) return toast('The two new passwords do not match', true);
+  const u = await api('changePassword', S.token, $('#cpOld').value, $('#cpNew').value);
+  setUser(u); toast('Password saved');
+  if(forced) afterLogin(); else render();
+}
+
+function doLogout(){
+  if(S.user) store(cacheKey(), null);
+  store(STORE, null);
+  Object.assign(S, {user:null, token:null, data:null, pdata:null, ana:null, tab:null, tests:null, videos:null, view:null});
+  renderLogin(S.loginKind || MODE);
+}
+
+/* ================= After login: saved data first, then fresh ================= */
+const cacheKey = () => 'peralions2_cache_' + S.user.role + '_' + S.user.id;
+
+async function afterLogin(){
+  $('#brandName').textContent = team();
+  $('#who').innerHTML = `<span>${esc(S.user.name)}</span><button onclick="doLogout()">Log out</button>`;
+  if(S.user.role === 'player' && S.user.mustChange) return renderChangePw(true);
+  const admin = S.user.role === 'admin';
+  const cached = store(cacheKey());
+  if(cached){
+    if(admin) S.data = cached; else S.pdata = cached;
+    setTab('home');
+  } else $('#app').innerHTML = '<div class="empty">Loading...</div>';
+  try{
+    const fresh = await api(admin ? 'getAdminData' : 'getPlayerData', S.token);
+    if(!S.user) return;
+    if(admin) S.data = fresh; else S.pdata = fresh;
+    if(!cached) setTab('home'); else refreshView();
+  }catch(e){
+    if(!cached && S.user) $('#app').innerHTML = '<div class="empty">Could not load. Check your connection and <a href="#" onclick="afterLogin();return false">try again</a>.</div>';
+  }
+}
+
+function refreshView(){
+  const el = document.activeElement;
+  if(el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) { saveCache(); return; }
+  if(S.tab === 'sessions') syncForm();
+  if(['attend','analysis','tests'].indexOf(S.tab) >= 0 || S.view) { saveCache(); return; }
+  render();
+}
+function saveCache(){
+  if(!S.user) return;
+  const d = S.user.role === 'admin' ? S.data : S.pdata;
+  if(d) store(cacheKey(), d);
+}
+
+/* ================= Tabs ================= */
+const ADMIN_TABS = [['home','Home'],['sessions','Sessions'],['players','Players'],['tests','Tests'],['videos','Videos'],['analysis','Analysis']];
+const PLAYER_TABS = [['home','Home'],['train','Gym log'],['progress','Progress'],['videos','Videos'],['me','Me']];
+
+function setTab(t){
+  S.tab = t; S.view = null; S.drawCharts = null; window.scrollTo(0,0);
+  const tabs = S.user.role === 'admin' ? ADMIN_TABS : PLAYER_TABS;
+  const nav = $('#tabs');
+  nav.style.display = t === 'attend' ? 'none' : 'flex';
+  nav.innerHTML = tabs.map(([k,l]) => `<button class="${k===t?'on':''}" onclick="setTab('${k}')">${l}${badge(k)}</button>`).join('');
+  render();
+}
+function badge(k){
+  let n = 0;
+  if(S.user.role === 'admin' && S.data){
+    if(k === 'home') n = S.data.alerts.length + S.data.resets.length + S.data.players.filter(p => p.Status === 'Pending').length;
+  } else if(S.pdata){
+    if(k === 'videos') n = S.pdata.videos.filter(x => !x.watched).length;
+  }
+  return n ? `<span class="nbadge">${n}</span>` : '';
+}
+function render(){
+  saveCache();
+  if(S.view === 'progress') return renderProgressView();
+  const admin = S.user.role === 'admin';
+  const f = (admin ? { home:renderAdminHome, sessions:renderSessions, attend:renderAttend, players:renderPlayers,
+                       tests:renderTests, videos:renderAdminVideos, analysis:renderAnalysis }
+                   : { home:renderPlayerHome, train:renderLog, progress:renderMyProgress, videos:renderPlayerVideos, me:renderMe })[S.tab];
+  f && f();
 }
 
 /* Google Charts is only downloaded the first time a chart is needed. */
@@ -237,89 +447,159 @@ function loadCharts(){
   };
   document.head.appendChild(sc);
 }
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function baseOpts(){
+  const ink = cssVar('--ink2'), line = cssVar('--line');
+  return { backgroundColor:'transparent', legend:{ position:'top', textStyle:{ color:ink } },
+    chartArea:{ left:44, right:12, top:36, bottom:40 }, fontName:'Inter',
+    hAxis:{ textStyle:{ color:ink }, gridlines:{ color:'transparent' }, baselineColor:line },
+    vAxis:{ textStyle:{ color:ink }, gridlines:{ color:line }, baselineColor:line, minValue:0 } };
+}
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => S.drawCharts && S.chartsReady && S.drawCharts(), 250); });
 
-function renderLogin(kind){
-  S.loginKind = kind;
-  $('#tabs').style.display = 'none'; $('#who').innerHTML = '';
-  $('#app').innerHTML = `<div class="login">
-    <img src="logo.jpg" alt="Pera Lions logo">
-    <div class="card">
-      <h2>${kind === 'admin' ? 'Captain / Admin login' : 'Player login'}</h2>
-      <div class="seg"><button class="${kind==='player'?'on':''}" onclick="renderLogin('player')">Player</button><button class="${kind==='admin'?'on':''}" onclick="renderLogin('admin')">Captain / Admin</button></div>
-      ${kind==='player' ? '<label>Player ID</label><input id="lId" placeholder="e.g. R012" autocapitalize="characters">' : ''}
-      <label>PIN</label><input id="lPin" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="btn primary block" onclick="doLogin()">Log in</button>
-      <p class="muted">${kind==='player' ? 'Get your ID and PIN from the captain.' : 'Admins are listed in the Admins tab of the sheet.'}</p>
-    </div></div>`;
+/* =========================================================
+   PROGRESS (shared: player's own page and admin's player view)
+   ========================================================= */
+function progressHtml(P, adminView){
+  const T = P.totals, pl = P.player;
+  const testCards = P.tests.map((t, i) => `<div class="card test-card">
+      <div class="sess-h"><b>${esc(t.Exercise)}</b>${t.IsPB ? '<span class="pill red">New personal best</span>' : ''}</div>
+      <div class="grid3" style="margin-top:6px">
+        <div><div class="muted">First</div><b>${v(t.First)} ${esc(t.Unit)}</b></div>
+        <div><div class="muted">Latest (${shortDate(t.LatestDate)})</div><b>${v(t.Latest)} ${esc(t.Unit)}</b></div>
+        <div><div class="muted">Change</div><b class="${t.Change > 0 ? 'up' : t.Change < 0 ? 'down' : ''}">${sign(t.Change, '%')}</b></div>
+      </div>
+      ${t.points.length > 1 ? `<div id="chTest${i}" class="chart small"></div>` : '<p class="muted">More results will show a growth chart.</p>'}
+    </div>`).join('');
+  return `
+    <div class="card"><div class="sess-h"><div><h2 style="margin:0">${esc(pl.Name)}</h2>
+      <div class="muted">${esc(pl.Batch)} Batch${pl.Position ? ' - ' + esc(pl.Position) : ''} - tracking since ${prettyDate(P.start)} (${T.DaysSinceStart} days)</div></div></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${v(T.Attendance)}${T.Attendance === null ? '' : '%'}</div><div class="l">Attendance since day one (${T.Attended}/${T.Possible})</div></div>
+      <div class="kpi"><div class="v">${T.GymCount}</div><div class="l">Gym sessions (${v(T.Gym)}${T.Gym===null?'':'%'})</div></div>
+      <div class="kpi"><div class="v">${T.GroundCount}</div><div class="l">Ground sessions (${v(T.Ground)}${T.Ground===null?'':'%'})</div></div>
+      <div class="kpi"><div class="v">${T.Streak}</div><div class="l">Current streak (best ${T.BestStreak})</div></div>
+      <div class="kpi"><div class="v">${T.DaysSinceLast === null ? '-' : T.DaysSinceLast}</div><div class="l">Days since last session${T.LastAttended ? ' (' + shortDate(T.LastAttended) + ')' : ''}</div></div>
+      <div class="kpi"><div class="v">${P.videos.Watched}/${P.videos.Total}</div><div class="l">Videos watched</div></div>
+    </div>
+    <section class="card"><h2>Monthly attendance</h2>
+      ${P.months.length ? `<div id="chMonths" class="chart"></div>
+      <div class="tablewrap"><table><tr><th>Month</th><th class="n">Sessions</th><th class="n">Attendance</th><th class="n">Avg effort</th><th class="n">Gym volume (kg)</th><th class="n">Rating</th></tr>
+      ${P.months.slice().reverse().map(m => `<tr><td>${monthName(m.Month)}</td><td class="n">${m.Attended}/${m.Possible}</td><td class="n">${v(m.Attendance)}%</td><td class="n">${v(m.RPE)}</td><td class="n">${m.Volume ? m.Volume.toLocaleString() : '-'}</td><td class="n">${v(m.Rating)}</td></tr>`).join('')}</table></div>`
+      : '<p class="muted">No completed sessions yet.</p>'}
+    </section>
+    <h3>Monthly max tests</h3>
+    ${testCards || '<div class="card muted">No test results yet. Max tests are recorded by the captain each month.</div>'}
+    <section class="card"><h2>Gym lifts (from gym logs)</h2>
+      ${P.lifts.length ? `<select onchange="S.liftEx=this.value;drawProgressCharts(S.curProg)">${P.lifts.map(l => `<option ${l.Exercise===S.liftEx?'selected':''}>${esc(l.Exercise)}</option>`).join('')}</select>
+        <div id="chLift" class="chart small"></div>
+        <table>${P.lifts.slice(0,8).map(l => `<tr><td>${esc(l.Exercise)}</td><td class="n">${l.First} to ${l.Best} kg</td><td class="n">${sign(l.Change,'%')}</td></tr>`).join('')}</table>`
+      : `<p class="muted">${adminView ? 'No gym logs yet.' : 'Log your gym work in the Gym log tab to see your lifts grow here.'}</p>`}
+    </section>
+    <section class="card"><h2>Focus areas trained</h2>
+      ${P.areas.length ? (() => { const mx = Math.max.apply(null, P.areas.map(a => a.Count)); return P.areas.map(a => `<div style="margin-bottom:8px"><div class="row" style="justify-content:space-between"><span>${esc(a.Area)} <span class="muted">${a.Type}</span></span><span class="muted right">${a.Count} sessions</span></div><div class="bar"><i style="width:${Math.round(a.Count/mx*100)}%"></i></div></div>`).join(''); })()
+      : '<p class="muted">Nothing yet.</p>'}
+    </section>
+    <section class="card"><h2>All sessions (${P.history.length})</h2>
+      ${P.history.length ? `<table>${P.history.map(h => `<tr><td>${tag(h.Type)} ${prettyDate(h.Date)}<div class="muted">${esc(h.FocusAreas)}${h.Notes ? ' - ' + esc(h.Notes) : ''}</div></td>
+        <td class="right"><span class="pill ${h.Status==='Absent'?'red':h.Status==='Excused'?'gray':''}">${esc(h.Status)}</span>
+        ${h.Rating !== null || h.RPE ? `<div class="note">${h.Rating !== null ? 'Rating ' + h.Rating : ''}${h.Rating !== null && h.RPE ? ', ' : ''}${h.RPE ? 'Effort ' + h.RPE : ''}</div>` : ''}</td></tr>`).join('')}</table>`
+      : '<p class="muted">No sessions since day one yet.</p>'}
+    </section>`;
 }
 
-async function doLogin(){
-  const id = $('#lId') ? $('#lId').value : '', pin = $('#lPin').value;
-  const u = await api('login', S.loginKind, id, pin);
-  S.user = u; S.token = u.token; store(STORE, u); afterLogin();
-}
-
-function doLogout(silent){
-  if(S.user) store(cacheKey(), null);
-  store(STORE, null); Object.assign(S, {user:null, token:null, data:null, pdata:null, ana:null, tab:null});
-  renderLogin(S.loginKind || MODE);
-}
-
-const cacheKey = () => 'peralions_cache_' + S.user.role + '_' + S.user.id;
-
-async function afterLogin(){
-  $('#brandName').textContent = team();
-  $('#who').innerHTML = `<span>${esc(S.user.name)}</span><button onclick="doLogout()">Log out</button>`;
-  const admin = S.user.role === 'admin';
-  const cached = store(cacheKey());
-  if(cached){                       // open instantly with the last saved data
-    if(admin) S.data = cached; else S.pdata = cached;
-    setTab(admin ? 'sessions' : 'upcoming');
-  } else {
-    $('#app').innerHTML = '<div class="empty">Loading...</div>';
+function drawProgressCharts(P){
+  if(!P || !window.google || !google.visualization) return;
+  const el = id => document.getElementById(id);
+  if(el('chMonths') && P.months.length){
+    const d = google.visualization.arrayToDataTable([['Month','Attendance %',{role:'annotation'}]]
+      .concat(P.months.map(m => [monthName(m.Month), m.Attendance || 0, m.Attendance === null ? '' : m.Attendance + '%'])));
+    const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.vAxis.maxValue = 100; o.bar = { groupWidth:'50%' };
+    new google.visualization.ColumnChart(el('chMonths')).draw(d, o);
   }
-  try{
-    const fresh = await api(admin ? 'getAdminData' : 'getPlayerData', S.token);
-    if(!S.user) return;
-    if(admin) S.data = fresh; else S.pdata = fresh;
-    if(!cached) setTab(admin ? 'sessions' : 'upcoming');
-    else refreshView();
-  }catch(e){
-    if(!cached && S.user) $('#app').innerHTML = '<div class="empty">Could not load. Check your connection and <a href="#" onclick="afterLogin();return false">try again</a>.</div>';
+  P.tests.forEach((t, i) => {
+    if(!el('chTest' + i)) return;
+    const d = google.visualization.arrayToDataTable([['Date', t.Exercise + ' (' + t.Unit + ')']].concat(t.points.map(p => [shortDate(p.Date), p.Value])));
+    const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue;
+    o.vAxis.direction = t.Better === 'Lower' ? -1 : 1; o.chartArea.top = 14;
+    new google.visualization.LineChart(el('chTest' + i)).draw(d, o);
+  });
+  if(el('chLift') && P.lifts.length){
+    const l = P.lifts.find(x => x.Exercise === S.liftEx) || P.lifts[0];
+    const d = google.visualization.arrayToDataTable([['Date','Best kg']].concat(l.points.map(p => [shortDate(p.Date), p.Value])));
+    const o = baseOpts(); o.colors = [cssVar('--s-gym')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue; o.chartArea.top = 14;
+    new google.visualization.LineChart(el('chLift')).draw(d, o);
   }
 }
-
-/* Re-draw with new data, unless the user is typing in a field. */
-function refreshView(){
-  const el = document.activeElement;
-  if(el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) { saveCache(); return; }
-  if(S.tab === 'sessions') syncForm();
-  if(S.tab === 'attend' || S.tab === 'analysis') { saveCache(); return; }
-  render();
-}
-function saveCache(){
-  if(!S.user) return;
-  const d = S.user.role === 'admin' ? S.data : S.pdata;
-  if(d) store(cacheKey(), d);
+function showProgress(P, adminView, backHtml){
+  S.curProg = P;
+  if(!S.liftEx && P.lifts.length) S.liftEx = P.lifts[0].Exercise;
+  $('#app').innerHTML = (backHtml || '') + progressHtml(P, adminView);
+  S.drawCharts = () => drawProgressCharts(P); loadCharts();
 }
 
-/* ================= Tabs ================= */
-const ADMIN_TABS = [['sessions','Sessions'],['squad','Squad'],['analysis','Analysis']];
-const PLAYER_TABS = [['upcoming','Sessions'],['log','Gym log'],['stats','My stats']];
-
-function setTab(t){
-  S.tab = t; S.drawCharts = null; window.scrollTo(0,0);
-  const tabs = S.user.role === 'admin' ? ADMIN_TABS : PLAYER_TABS;
-  const nav = $('#tabs');
-  nav.style.display = t === 'attend' ? 'none' : 'flex';
-  nav.innerHTML = tabs.map(([k,l]) => `<button class="${k===t?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
-  render();
+/* =========================================================
+   ADMIN - Home (alerts, approvals, password requests)
+   ========================================================= */
+function renderAdminHome(){
+  const d = S.data, st = d.settings;
+  const pending = d.players.filter(p => p.Status === 'Pending');
+  const active = d.players.filter(p => p.Active);
+  const notInGroup = active.filter(p => !p.InWhatsApp);
+  const upcoming = d.sessions.filter(s => s.Status !== 'Completed').slice().reverse().slice(0, 3);
+  $('#app').innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${active.length}</div><div class="l">Active players</div></div>
+      <div class="kpi ${d.alerts.length?'warn':''}"><div class="v">${d.alerts.length}</div><div class="l">Missing practice (${st.MissingDays}+ days)</div></div>
+      <div class="kpi"><div class="v">${pending.length}</div><div class="l">Sign-ups to approve</div></div>
+      <div class="kpi"><div class="v">${d.resets.length}</div><div class="l">Password requests</div></div>
+    </div>
+    <section class="card alert-card"><h2>Missing practice</h2>
+      ${d.alerts.length ? `<p class="muted">Not attended for more than ${st.MissingDays} days and missed at least one session since.</p>
+      <table>${d.alerts.map(a => `<tr><td><b>${esc(a.Name)}</b> <span class="muted">${esc(a.Batch)}</span><div class="note">${a.LastAttended ? 'Last came ' + prettyDate(a.LastAttended) : 'Not attended yet'} - ${a.Missed} missed${a.Phone ? ' - ' + esc(a.Phone) : ''}</div></td>
+        <td class="right"><span class="pill red">${a.Days} days</span><div><button class="btn sm" style="margin-top:4px" onclick="openPlayerProgress('${a.PlayerID}')">Progress</button></div></td></tr>`).join('')}</table>
+      <button class="btn primary block" onclick="showMsg('Practice reminder', S.data.alertMessage)">WhatsApp reminder message</button>`
+      : '<p class="muted">Everyone has been at practice recently.</p>'}
+    </section>
+    <section class="card"><h2>New sign-ups</h2>
+      ${pending.length ? `<table>${pending.map(p => `<tr><td><b>${esc(p.Name)}</b> <span class="muted">${esc(p.Batch)}</span>
+        <div class="note">${esc(p.Phone)}${p.Position ? ' - ' + esc(p.Position) : ''} - WhatsApp group: ${p.InWhatsApp ? 'yes' : '<b>no</b>'}</div></td>
+        <td class="right" style="white-space:nowrap"><button class="btn sm primary" onclick="approve('${p.PlayerID}',true)">Approve</button>
+        <button class="btn sm danger" onclick="approve('${p.PlayerID}',false)">Reject</button></td></tr>`).join('')}</table>`
+      : '<p class="muted">No new sign-ups waiting.</p>'}
+    </section>
+    <section class="card"><h2>Forgot password requests</h2>
+      ${d.resets.length ? `<table>${d.resets.map(r => `<tr><td><b>${esc(r.Name)}</b><div class="note">${esc(r.Phone)}${r.Note ? ' - "' + esc(r.Note) + '"' : ''} - ${esc(r.Created)}</div></td>
+        <td class="right"><button class="btn sm primary" onclick="resetPw('${r.PlayerID}')">Set temporary password</button></td></tr>`).join('')}</table>`
+      : '<p class="muted">No requests.</p>'}
+    </section>
+    ${notInGroup.length ? `<section class="card"><h2>Not in the WhatsApp group (${notInGroup.length})</h2>
+      <p class="muted">${notInGroup.map(p => esc(p.Name) + ' (' + esc(p.Phone) + ')').join(', ')}</p>
+      ${st.WhatsAppGroupLink ? `<button class="btn sm" onclick="showMsg('Group invite', 'Please join the ${esc(team())} WhatsApp group: ' + S.data.settings.WhatsAppGroupLink)">Invite message</button>` : '<p class="note">Add the group invite link (WhatsAppGroupLink) in the Settings tab of the sheet.</p>'}
+    </section>` : ''}
+    <h3>Next sessions</h3>
+    ${upcoming.map(sessCard).join('') || '<div class="empty">No upcoming sessions. Plan one in the Sessions tab.</div>'}`;
 }
-function render(){
-  saveCache();
-  const f = { sessions:renderSessions, attend:renderAttend, squad:renderSquad, analysis:renderAnalysis,
-              upcoming:renderUpcoming, log:renderLog, stats:renderStats }[S.tab];
-  f && f();
+async function approve(pid, yes){
+  if(!yes && !confirm('Reject and remove this sign-up?')) return;
+  const r = await api('approvePlayer', S.token, pid, yes);
+  S.data = r.data; setTab(S.tab);
+  if(yes) showMsg('Approved - let them know', r.message); else toast('Sign-up removed');
+}
+async function resetPw(pid){
+  const p = S.data.players.find(x => x.PlayerID === pid);
+  if(!confirm('Set a new temporary password for ' + (p ? p.Name : 'this player') + '?')) return;
+  const r = await api('resetPassword', S.token, pid);
+  S.data = r.data; setTab(S.tab);
+  showMsg('Send this to the player', r.message);
+}
+async function openPlayerProgress(pid){
+  const P = await api('getPlayerProgress', S.token, pid);
+  S.view = 'progress'; S.viewProg = P; S.liftEx = null; S.drawCharts = null;
+  window.scrollTo(0,0); renderProgressView();
+}
+function renderProgressView(){
+  showProgress(S.viewProg, true, `<button class="btn sm" onclick="S.view=null;render()">Back</button><div style="height:10px"></div>`);
 }
 
 /* =========================================================
@@ -359,7 +639,7 @@ function renderSessions(){
     </section>
     <h3>Upcoming / not yet marked (${upcoming.length})</h3>
     ${upcoming.map(sessCard).join('') || '<div class="empty">No upcoming sessions. Publish one above.</div>'}
-    <h3>Completed</h3>
+    <h3>Completed this season</h3>
     ${done.map(sessCard).join('') || '<div class="empty">Nothing yet.</div>'}`;
 }
 
@@ -394,6 +674,7 @@ async function publishSession(){
   showMsg('Session published - announce it', r.message);
 }
 function editSession(id){
+  if(S.tab !== 'sessions') setTab('sessions');
   const s = S.data.sessions.find(x => x.SessionID === id);
   S.form = { SessionID:s.SessionID, Date:s.Date, Time:s.Time, Type:s.Type, focus:splitAreas(s.FocusAreas), Plan:s.Plan };
   render(); window.scrollTo(0,0);
@@ -416,7 +697,6 @@ async function openAttend(id){
             focus:splitAreas(r.session.FocusAreas), rArea:null, pending:{} };
   setTab('attend');
 }
-
 function activePlayersByBatch(){
   const g = {};
   S.data.players.filter(p => p.Active).forEach(p => (g[p.Batch] = g[p.Batch] || []).push(p));
@@ -426,7 +706,6 @@ function availNote(pid){
   const a = S.att.avail[pid]; if(!a) return '';
   return a.Status === 'Going' ? 'Said: going' : 'Said: not going' + (a.Reason ? ' - ' + a.Reason : '');
 }
-
 function renderAttend(){
   const a = S.att, s = a.session;
   const areas = S.data.focusAreas.filter(x => x.Type === s.Type).map(x => x.Area);
@@ -449,7 +728,7 @@ function renderAttend(){
         <button class="btn sm" onclick="allPresent('${esc(b)}')">All present</button></div>
       ${ps.map(p => `<div class="prow ${a.map[p.PlayerID]||''}" id="pr-${p.PlayerID}" onclick="cycle('${p.PlayerID}')">
         <span class="nm">${esc(p.Name)}${availNote(p.PlayerID) ? `<small>${esc(availNote(p.PlayerID))}</small>` : ''}</span><span class="st">${LABEL[a.map[p.PlayerID]||'']}</span></div>`).join('')}
-    </div>`).join('') || '<div class="empty">No players yet - add them in the Squad tab.</div>'}
+    </div>`).join('') || '<div class="empty">No active players yet. Approve sign-ups on the Home tab.</div>'}
     <section class="card"><h3 style="margin-top:0">Captain ratings (optional)</h3>
       <p class="muted">Rate players 1-10 in a focus area. It counts for a small part of the analysis.</p>
       <div id="rateBox"></div></section>
@@ -457,20 +736,18 @@ function renderAttend(){
     <div class="sticky-bar"><span class="count" id="aCount"></span><button class="btn primary" onclick="saveAttend()">Save & get WhatsApp message</button></div>`;
   updateCounts();
 }
-
 function feedbackCard(){
   const fb = S.att.feedback; if(!fb.length) return '';
   const avg = k => { const xs = fb.map(f => Number(f[k])).filter(x => x > 0); return xs.length ? (xs.reduce((a,b)=>a+b,0)/xs.length).toFixed(1) : '-'; };
   const name = pid => (S.data.players.find(p => p.PlayerID === pid) || {}).Name || pid;
   const comments = fb.filter(f => f.Comment);
   return `<section class="card"><h3 style="margin-top:0">Player feedback (${fb.length})</h3>
-    <div class="grid3"><div class="kpi"><div class="v">${avg('RPE')}</div><div class="l">Avg effort (RPE 1-10)</div></div>
+    <div class="grid3"><div class="kpi"><div class="v">${avg('RPE')}</div><div class="l">Avg effort (1-10)</div></div>
     <div class="kpi"><div class="v">${avg('Energy')}</div><div class="l">Avg energy (1-5)</div></div>
     <div class="kpi"><div class="v">${avg('Soreness')}</div><div class="l">Avg soreness (1-5)</div></div></div>
     ${comments.length ? `<table style="margin-top:8px">${comments.map(f => `<tr><td>${esc(name(f.PlayerID))}</td><td>${esc(f.Comment)}</td></tr>`).join('')}</table>` : ''}
   </section>`;
 }
-
 function toggleAFocus(el){
   const x = el.dataset.a, f = S.att.focus, i = f.indexOf(x);
   i >= 0 ? f.splice(i,1) : f.push(x);
@@ -507,7 +784,6 @@ async function saveAttend(){
   S.data = r.data; a.session.Notes = $('#aNotes').value;
   showMsg('Attendance saved', r.message);
 }
-
 function renderRateBox(){
   const a = S.att, box = $('#rateBox'); if(!box) return;
   document.querySelectorAll('.rsel').forEach(s => { a.pending[s.dataset.area + '|' + s.dataset.pid] = s.value; });
@@ -532,70 +808,218 @@ async function saveRatings(){
 }
 
 /* =========================================================
-   ADMIN - Squad
+   ADMIN - Players
    ========================================================= */
-function renderSquad(){
+function renderPlayers(){
   const d = S.data;
+  if(!S.pSeg) S.pSeg = 'Active';
+  const q = (S.pSearch || '').toLowerCase();
+  const list = d.players.filter(p => p.Status === S.pSeg && (!q || (p.Name + ' ' + p.Phone + ' ' + p.Batch).toLowerCase().indexOf(q) >= 0));
   const groups = {};
-  d.players.forEach(p => (groups[p.Batch] = groups[p.Batch] || []).push(p));
+  list.forEach(p => (groups[p.Batch] = groups[p.Batch] || []).push(p));
+  const count = s => d.players.filter(p => p.Status === s).length;
   const batchOpts = d.batches.filter(b => b.Active).map(b => `<option>${esc(b.BatchCode)}</option>`).join('');
-  const base = d.appUrl || '';
   $('#app').innerHTML = `
+    <div class="seg">${['Active','Pending','Archived'].map(s => `<button class="${S.pSeg===s?'on':''}" onclick="S.pSeg='${s}';render()">${s} (${count(s)})</button>`).join('')}</div>
+    <input style="margin:10px 0" placeholder="Search name, phone or batch" value="${esc(S.pSearch||'')}" oninput="S.pSearch=this.value;clearTimeout(S._ps);S._ps=setTimeout(()=>{render();const i=document.querySelector('main input');i.focus();i.setSelectionRange(i.value.length,i.value.length);},300)">
+    ${S.pSeg === 'Archived' ? `<p class="muted">Players from before the season started on ${prettyDate(d.settings.SeasonStart)} and anyone archived later. Their data is kept. Edit a player to make them active again.</p>` : ''}
+    ${S.pSeg === 'Pending' ? '<p class="muted">Self sign-ups waiting for approval (also shown on the Home tab).</p>' : ''}
+    ${Object.keys(groups).sort(numSort).map(b => `<h3>${esc(b)} Batch (${groups[b].length})</h3><div class="card" style="padding:4px 10px"><table>
+      ${groups[b].map(p => `<tr><td><b>${esc(p.Name)}</b>${p.Position ? ` <span class="muted">${esc(p.Position)}</span>` : ''}
+        <div class="note">${esc(p.Phone) || 'no phone'}${p.Active ? ' - WhatsApp group: ' + (p.InWhatsApp ? 'yes' : 'no') : ''}${p.Joined ? ' - joined ' + shortDate(p.Joined) : ''}</div></td>
+        <td class="right" style="white-space:nowrap">
+          ${p.Status === 'Pending' ? `<button class="btn sm primary" onclick="approve('${p.PlayerID}',true)">Approve</button>` : ''}
+          ${p.Active ? `<button class="btn sm primary" onclick="openPlayerProgress('${p.PlayerID}')">Progress</button>` : ''}
+          <button class="btn sm" onclick="editPlayer('${p.PlayerID}')">Edit</button>
+          ${p.Active ? `<button class="btn sm" onclick="resetPw('${p.PlayerID}')">Password</button>` : ''}</td></tr>`).join('')}
+    </table></div>`).join('') || '<div class="empty">No players here.</div>'}
+    <section class="card"><h2>Add a player yourself</h2>
+      <p class="muted">Players normally create their own account. Use this for someone who can't. They get a temporary password.</p>
+      <label>Full name</label><input id="apName">
+      <div class="grid2"><div><label>Batch</label><select id="apBatch">${batchOpts}</select></div>
+      <div><label>Mobile number</label><input id="apPhone" type="tel" placeholder="07XXXXXXXX"></div></div>
+      <button class="btn primary block" onclick="addPlayerNow()">Add player</button>
+    </section>
     <section class="card"><h2>Batches</h2>
       <div class="chips">${d.batches.map(b => `<span class="chip ${b.Active?'on':''}" onclick="toggleBatch('${esc(b.BatchCode)}', ${!b.Active})">${esc(b.BatchCode)}</span>`).join('')}</div>
-      <p class="muted">Dark = active. Tap to hide an old batch.</p>
-      <div class="row"><input id="newBatch" placeholder="New batch, e.g. 26" inputmode="numeric"><button class="btn sm" onclick="addBatch()">Add batch</button></div>
-    </section>
-    <section class="card"><h2>Add players</h2>
-      <label>Batch</label><select id="bulkBatch">${batchOpts}</select>
-      <label>Names - one per line</label><textarea id="bulkNames" rows="5" placeholder="Kasun Perera&#10;Nuwan Silva"></textarea>
-      <button class="btn primary block" onclick="addBulk()">Add players</button>
-      <p class="muted">Each player gets an ID (R001, R002...) and a random 4-digit PIN for the player portal.</p>
-    </section>
-    <section class="card"><h2>Players (${d.players.filter(p=>p.Active).length} active)</h2>
-      ${Object.keys(groups).sort(numSort).map(b => `<h3>${esc(b)} Batch</h3><div class="tablewrap"><table>
-        <tr><th>Name</th><th>ID</th><th>PIN</th><th></th></tr>
-        ${groups[b].map(p => `<tr style="${p.Active?'':'opacity:.45'}"><td>${esc(p.Name)}${p.Position?` <span class="muted">${esc(p.Position)}</span>`:''}</td>
-          <td>${esc(p.PlayerID)}</td><td>${esc(p.PIN)}</td>
-          <td class="right" style="white-space:nowrap"><button class="btn sm" onclick="editPlayer('${p.PlayerID}')">Edit</button>
-          <button class="btn sm" onclick="sendLogin('${p.PlayerID}')">Login msg</button></td></tr>`).join('')}
-      </table></div>`).join('') || '<div class="empty">No players yet.</div>'}
+      <p class="muted">Dark = shown in the sign-up form. Tap to hide or show.</p>
+      <div class="row"><input id="newBatch" placeholder="New batch, e.g. 27" inputmode="numeric"><button class="btn sm" onclick="addBatch()">Add batch</button></div>
     </section>
     <section class="card"><h2>Focus areas</h2>
       ${['Gym','Ground'].map(t => `<label>${t}</label><div class="chips">${d.focusAreas.filter(f=>f.Type===t).map(f=>`<span class="chip static">${esc(f.Area)}</span>`).join('')}</div>`).join('')}
       <div class="row" style="margin-top:10px"><input id="faName" placeholder="New focus area"><select id="faType" style="max-width:110px"><option>Gym</option><option>Ground</option></select><button class="btn sm" onclick="addFA()">Add</button></div>
     </section>
     <section class="card"><h2>Links</h2>
-      <label>Player portal (share in the WhatsApp group)</label>
-      <div class="row"><input readonly value="${esc(base)}"><button class="btn sm" onclick="copyText('${esc(base)}')">Copy</button></div>
-      <label>Captain / admin portal</label>
-      <div class="row"><input readonly value="${esc(base)}?p=admin"><button class="btn sm" onclick="copyText('${esc(base)}?p=admin')">Copy</button></div>
-      <p class="muted">Admin PINs and settings (team name, analysis weights) are edited in the Admins and Settings tabs of the Google Sheet.</p>
+      <label>Player app (share in the WhatsApp group)</label>
+      <div class="row"><input readonly value="${esc(d.appUrl)}"><button class="btn sm" onclick="copyText(S.data.appUrl)">Copy</button></div>
+      <label>Captain / admin</label>
+      <div class="row"><input readonly value="${esc(d.appUrl)}?p=admin"><button class="btn sm" onclick="copyText(S.data.appUrl + '?p=admin')">Copy</button></div>
+      <p class="muted">Admin PINs and settings (season start, missing-practice days, WhatsApp group link) are in the Admins and Settings tabs of the Google Sheet.</p>
     </section>`;
+}
+async function addPlayerNow(){
+  const r = await api('addPlayer', S.token, { Name:$('#apName').value, Batch:$('#apBatch').value, Phone:$('#apPhone').value });
+  S.data = r.data; render(); showMsg('Player added - send them this', r.message);
 }
 async function toggleBatch(code, active){ S.data = await api('setBatchActive', S.token, code, active); render(); }
 async function addBatch(){ const c = $('#newBatch').value.trim(); if(!c) return; S.data = await api('saveBatch', S.token, c); render(); toast('Batch ' + c + ' added'); }
-async function addBulk(){ S.data = await api('savePlayersBulk', S.token, $('#bulkBatch').value, $('#bulkNames').value); render(); toast('Players added'); }
 async function addFA(){ S.data = await api('saveFocusArea', S.token, $('#faName').value, $('#faType').value); render(); }
-
 function editPlayer(id){
   const p = S.data.players.find(x => x.PlayerID === id);
   openModal(`<h2>Edit player</h2>
     <label>Name</label><input id="epName" value="${esc(p.Name)}">
     <div class="grid2"><div><label>Batch</label><select id="epBatch">${S.data.batches.map(b => `<option ${b.BatchCode===p.Batch?'selected':''}>${esc(b.BatchCode)}</option>`).join('')}</select></div>
-    <div><label>Position (optional)</label><input id="epPos" value="${esc(p.Position)}" placeholder="e.g. Prop"></div></div>
-    <label>PIN (4-6 digits)</label><input id="epPin" value="${esc(p.PIN)}" inputmode="numeric">
-    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="epActive" style="width:auto" ${p.Active?'checked':''}> Active (untick for players who left)</label>
+    <div><label>Position</label><input id="epPos" value="${esc(p.Position)}" placeholder="e.g. Prop"></div></div>
+    <label>Mobile number</label><input id="epPhone" type="tel" value="${esc(p.Phone)}">
+    <label>Status</label><select id="epStatus"><option ${p.Status!=='Archived'?'selected':''}>Active</option><option ${p.Status==='Archived'?'selected':''}>Archived</option></select>
+    ${!p.HasPassword ? '<p class="note">This player has no password yet. After making them Active, use "Password" to send them a temporary one.</p>' : ''}
     <div class="actions"><button class="btn primary" onclick="savePlayerModal('${id}')">Save</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
 }
 async function savePlayerModal(id){
   S.data = await api('savePlayer', S.token, { PlayerID:id, Name:$('#epName').value, Batch:$('#epBatch').value,
-    Position:$('#epPos').value, PIN:$('#epPin').value, Active:$('#epActive').checked });
+    Position:$('#epPos').value, Phone:$('#epPhone').value, Status:$('#epStatus').value });
   closeModal(); render(); toast('Saved');
 }
-function sendLogin(id){
-  const p = S.data.players.find(x => x.PlayerID === id);
-  showMsg('Login details for ' + p.Name, `Hi ${p.Name},\nYour ${S.data.settings.TeamName} player portal login:\nID: ${p.PlayerID}\nPIN: ${p.PIN}\nLink: ${S.data.appUrl}\n\nPlease keep your PIN private.`);
+
+/* =========================================================
+   ADMIN - Monthly max tests
+   ========================================================= */
+async function renderTests(){
+  if(!S.tests){ $('#app').innerHTML = '<div class="empty">Loading tests...</div>'; S.tests = await api('getTests', S.token); }
+  const T = S.tests, ex = T.exercises;
+  if(!S.tEx || !ex.find(x => x.Exercise === S.tEx)) S.tEx = ex.length ? ex[0].Exercise : '';
+  if(!S.tDate) S.tDate = S.data.today || todayStr();
+  const meta = ex.find(x => x.Exercise === S.tEx) || { Unit:'kg', Better:'Higher' };
+  const results = T.tests.filter(t => t.Exercise === S.tEx);
+  const onDate = {}; results.filter(t => t.Date === S.tDate).forEach(t => onDate[t.PlayerID] = t.Value);
+  const lastDate = ex.map(x => { const d = T.tests.filter(t => t.Exercise === x.Exercise).map(t => t.Date).sort().pop() || ''; return { x, d }; });
+  const today = S.data.today || todayStr();
+  // leaderboard: first / latest / best / change per active player
+  const lower = meta.Better === 'Lower';
+  const board = S.data.players.filter(p => p.Active).map(p => {
+    const mine = results.filter(t => t.PlayerID === p.PlayerID);
+    if(!mine.length) return null;
+    const vals = mine.map(t => t.Value);
+    const first = mine[0].Value, latest = mine[mine.length-1].Value;
+    const best = lower ? Math.min.apply(null, vals) : Math.max.apply(null, vals);
+    let ch = first > 0 && mine.length > 1 ? (latest - first) / first * 100 : null;
+    if(ch !== null && lower) ch = -ch;
+    return { p, first, latest, best, ch: ch === null ? null : Math.round(ch*10)/10, n: mine.length };
+  }).filter(Boolean).sort((a,b) => lower ? a.latest - b.latest : b.latest - a.latest);
+  $('#app').innerHTML = `
+    <section class="card"><h2>Record test results</h2>
+      <div class="grid2"><div><label>Test</label><select onchange="S.tEx=this.value;renderTests()">${ex.map(x => `<option ${x.Exercise===S.tEx?'selected':''}>${esc(x.Exercise)}</option>`).join('')}</select></div>
+      <div><label>Test date</label><input type="date" value="${S.tDate}" onchange="S.tDate=this.value;renderTests()"></div></div>
+      <p class="muted">Unit: ${esc(meta.Unit)} - ${lower ? 'lower is better' : 'higher is better'}. Leave a box empty if the player did not test.</p>
+      ${activePlayersByBatch().map(([b, ps]) => `<div class="batch"><div class="batch-h"><span>${esc(b)} Batch</span></div>
+        ${ps.map(p => `<div class="row trow"><span>${esc(p.Name)}</span><input class="tval" data-pid="${p.PlayerID}" type="number" step="0.5" inputmode="decimal" placeholder="${esc(meta.Unit)}" value="${onDate[p.PlayerID] !== undefined ? onDate[p.PlayerID] : ''}"></div>`).join('')}</div>`).join('') || '<p class="muted">No active players yet.</p>'}
+      <button class="btn primary block" onclick="saveTestValues()">Save ${esc(S.tEx)} results</button>
+    </section>
+    <section class="card"><h2>${esc(S.tEx)} leaderboard</h2>
+      ${board.length ? `<div class="tablewrap"><table><tr><th>#</th><th>Player</th><th class="n">First</th><th class="n">Latest</th><th class="n">Best</th><th class="n">Change</th></tr>
+      ${board.map((r,i) => `<tr onclick="openPlayerProgress('${r.p.PlayerID}')" style="cursor:pointer"><td>${i+1}</td><td>${esc(r.p.Name)} <span class="muted">${esc(r.p.Batch)}</span></td>
+        <td class="n">${r.first}</td><td class="n"><b>${r.latest}</b></td><td class="n">${r.best}</td><td class="n ${r.ch>0?'up':r.ch<0?'down':''}">${sign(r.ch,'%')}</td></tr>`).join('')}</table></div>`
+      : '<p class="muted">No results yet for this test.</p>'}
+    </section>
+    <section class="card"><h2>Tests</h2>
+      <table>${lastDate.map(({x,d}) => `<tr><td>${esc(x.Exercise)} <span class="muted">${esc(x.Unit)}, ${x.Better === 'Lower' ? 'lower' : 'higher'} is better</span></td>
+        <td class="right">${d ? (daysBetween(d, today) > 30 ? `<span class="pill red">Due - last ${shortDate(d)}</span>` : `<span class="pill">Last ${shortDate(d)}</span>`) : '<span class="pill gray">Never tested</span>'}</td></tr>`).join('')}</table>
+      <label>Add a test</label>
+      <div class="row"><input id="ntName" placeholder="e.g. Hang clean"><select id="ntUnit" style="max-width:90px"><option>kg</option><option>reps</option><option>sec</option><option>m</option><option>cm</option></select>
+      <select id="ntBetter" style="max-width:110px"><option value="Higher">Higher better</option><option value="Lower">Lower better</option></select></div>
+      <button class="btn block" onclick="addTest()">Add test</button>
+    </section>`;
+}
+async function saveTestValues(){
+  const vals = {};
+  document.querySelectorAll('.tval').forEach(i => { vals[i.dataset.pid] = i.value; });
+  S.tests = await api('saveMaxTests', S.token, S.tDate, S.tEx, vals);
+  renderTests(); toast(S.tEx + ' results saved');
+}
+async function addTest(){
+  S.tests = await api('saveTestExercise', S.token, $('#ntName').value, $('#ntUnit').value, $('#ntBetter').value);
+  S.tEx = $('#ntName').value.trim(); renderTests();
+}
+
+/* =========================================================
+   VIDEOS
+   ========================================================= */
+function embedUrl(u){
+  let m = String(u).match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if(m) return 'https://www.youtube.com/embed/' + m[1];
+  m = String(u).match(/drive\.google\.com\/file\/d\/([\w-]+)/);
+  if(m) return 'https://drive.google.com/file/d/' + m[1] + '/preview';
+  return '';
+}
+function videoFrame(vd){
+  const e = embedUrl(vd.URL);
+  return e ? `<div class="vframe" id="vf-${vd.VideoID}"><button class="btn dark" onclick="playVideo('${vd.VideoID}')">Play video</button></div>`
+           : `<a class="btn dark" href="${esc(vd.URL)}" target="_blank" rel="noopener">Open video</a>`;
+}
+function playVideo(id){
+  const list = (S.user.role === 'admin' ? S.videos : S.pdata.videos) || [];
+  const vd = list.find(x => x.VideoID === id); if(!vd) return;
+  $('#vf-' + id).innerHTML = `<iframe src="${embedUrl(vd.URL)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+}
+
+/* ---- Admin videos ---- */
+async function renderAdminVideos(){
+  if(!S.videos){ $('#app').innerHTML = '<div class="empty">Loading videos...</div>'; S.videos = await api('getVideos', S.token); }
+  const active = S.data.players.filter(p => p.Active);
+  if(!S.vBatches) S.vBatches = [];
+  $('#app').innerHTML = `
+    <section class="card"><h2>Add a video</h2>
+      <label>Title</label><input id="vTitle" placeholder="e.g. Ruck clean-out technique">
+      <label>Link (YouTube or Google Drive)</label><input id="vUrl" placeholder="https://youtu.be/...">
+      <div class="grid2"><div><label>Category</label><input id="vCat" placeholder="e.g. Tackling, Gym"></div>
+      <div><label>For batches</label><div class="chips" id="vBatch">${S.data.batches.filter(b=>b.Active).map(b => `<span class="chip ${S.vBatches.indexOf(b.BatchCode)>=0?'on':''}" onclick="toggleVB(this,'${esc(b.BatchCode)}')">${esc(b.BatchCode)}</span>`).join('')}</div>
+        <div class="note">None selected = everyone</div></div></div>
+      <label>What should players look for? (optional)</label><textarea id="vDesc" rows="2"></textarea>
+      <button class="btn primary block" onclick="addVideo()">Post video</button>
+      <p class="note">For Google Drive videos, set sharing to "Anyone with the link can view".</p>
+    </section>
+    ${S.videos.map(vd => { const target = targetPlayers(vd, active); const seen = vd.views.filter(w => target.find(p => p.PlayerID === w.PlayerID)).length;
+      return `<div class="card"><div class="sess-h"><b>${esc(vd.Title)}</b><span class="pill ${seen < target.length ? 'pub' : ''}">${seen}/${target.length} watched</span></div>
+      <div class="muted">${vd.Category ? esc(vd.Category) + ' - ' : ''}${vd.Batches ? 'Batches ' + esc(vd.Batches) : 'Everyone'} - posted ${shortDate(vd.Created)}</div>
+      ${vd.Description ? `<p style="margin:6px 0">${esc(vd.Description)}</p>` : ''}
+      <div class="bar"><i style="width:${target.length ? Math.round(seen/target.length*100) : 0}%"></i></div>
+      <div class="actions"><button class="btn sm primary" onclick="videoDetail('${vd.VideoID}')">Who watched</button>${videoFrame(vd)}<button class="btn sm danger" onclick="delVideo('${vd.VideoID}')">Delete</button></div></div>`; }).join('') || '<div class="empty">No videos yet.</div>'}`;
+}
+function targetPlayers(vd, active){ const b = splitAreas(vd.Batches); return active.filter(p => !b.length || b.indexOf(p.Batch) >= 0); }
+function toggleVB(el, b){ const i = S.vBatches.indexOf(b); i >= 0 ? S.vBatches.splice(i,1) : S.vBatches.push(b); el.classList.toggle('on'); }
+async function addVideo(){
+  S.videos = await api('saveVideo', S.token, { Title:$('#vTitle').value, URL:$('#vUrl').value, Category:$('#vCat').value, Description:$('#vDesc').value, Batches:S.vBatches });
+  S.vBatches = []; renderAdminVideos(); toast('Video posted');
+  showMsg('Tell the players', `*${team().toUpperCase()} - NEW VIDEO*\n${S.videos[0].Title}\nWatch it in the app and tap "Mark as watched": ${S.data.appUrl}`);
+}
+async function delVideo(id){ if(!confirm('Delete this video and its watch records?')) return; S.videos = await api('deleteVideo', S.token, id); renderAdminVideos(); }
+function videoDetail(id){
+  const vd = S.videos.find(x => x.VideoID === id);
+  const target = targetPlayers(vd, S.data.players.filter(p => p.Active));
+  const seen = {}; vd.views.forEach(w => seen[w.PlayerID] = w.Timestamp);
+  const yes = target.filter(p => seen[p.PlayerID]), no = target.filter(p => !seen[p.PlayerID]);
+  S.vRemind = `*${team().toUpperCase()} - PLEASE WATCH*\n"${vd.Title}"\n\nNot watched yet:\n` + no.map((p,i) => `${i+1}. ${p.Name} (${p.Batch})`).join('\n') + `\n\nWatch in the app and tap "Mark as watched": ${S.data.appUrl}`;
+  openModal(`<h2>${esc(vd.Title)}</h2>
+    <div class="grid2"><div><h3>Watched (${yes.length})</h3>${yes.map(p => `<div>${esc(p.Name)} <span class="note">${shortDate(seen[p.PlayerID])}</span></div>`).join('') || '<p class="muted">Nobody yet</p>'}</div>
+    <div><h3>Not watched (${no.length})</h3>${no.map(p => `<div>${esc(p.Name)} <span class="muted">${esc(p.Batch)}</span></div>`).join('') || '<p class="muted">Everyone watched</p>'}</div></div>
+    <div class="actions">${no.length ? `<button class="btn primary" onclick="showMsg('Reminder', S.vRemind)">Reminder message</button>` : ''}<button class="btn" onclick="closeModal()">Close</button></div>`);
+}
+
+/* ---- Player videos ---- */
+function renderPlayerVideos(){
+  const vids = S.pdata.videos;
+  $('#app').innerHTML = `<h2>Training videos</h2>
+    ${vids.map(vd => `<div class="card ${vd.watched ? '' : 'unseen'}"><div class="sess-h"><b>${esc(vd.Title)}</b>${vd.watched ? `<span class="pill">Watched ${shortDate(vd.watchedAt)}</span>` : '<span class="pill red">New</span>'}</div>
+      <div class="muted">${vd.Category ? esc(vd.Category) + ' - ' : ''}posted ${shortDate(vd.Created)}${vd.CreatedBy ? ' by ' + esc(vd.CreatedBy) : ''}</div>
+      ${vd.Description ? `<p style="margin:6px 0">${esc(vd.Description)}</p>` : ''}
+      <div style="margin-top:8px">${videoFrame(vd)}</div>
+      <button class="btn block ${vd.watched ? '' : 'primary'}" onclick="markWatched('${vd.VideoID}', ${!vd.watched})">${vd.watched ? 'Mark as not watched' : 'Mark as watched'}</button>
+    </div>`).join('') || '<div class="empty">No videos yet.</div>'}`;
+}
+async function markWatched(id, yes){
+  S.pdata.videos = await api('markVideo', S.token, id, yes);
+  const P = S.pdata.progress; if(P) P.videos.Watched = S.pdata.videos.filter(x => x.watched).length;
+  setTab('videos'); toast(yes ? 'Marked as watched' : 'Marked as not watched');
 }
 
 /* =========================================================
@@ -603,21 +1027,27 @@ function sendLogin(id){
    ========================================================= */
 function renderAnalysis(){
   const today = S.data.today || todayStr();
-  if(!S.anaRange) S.anaRange = { from: addDays(today, -90), to: today };
+  const season = S.data.settings.SeasonStart || '';
+  if(!S.anaRange){ const f = addDays(today, -90); S.anaRange = { from: f > season ? f : season, to: today }; }
   const A = S.ana;
   $('#app').innerHTML = `
     <section class="card"><div class="grid2">
       <div><label>From</label><input type="date" id="anFrom" value="${S.anaRange.from}"></div>
       <div><label>To</label><input type="date" id="anTo" value="${S.anaRange.to}"></div></div>
       <div class="actions">
-        ${[30,60,90].map(n => `<button class="btn sm" onclick="anaPreset(${n})">Last ${n} days</button>`).join('')}
+        <button class="btn sm" onclick="anaPreset('season')">This season</button>
+        ${[30,90].map(n => `<button class="btn sm" onclick="anaPreset(${n})">Last ${n} days</button>`).join('')}
         <button class="btn primary" onclick="runAnalysis()">Analyse</button>
         ${A ? '<button class="btn" onclick="summaryMsg()">WhatsApp summary</button><button class="btn" onclick="exportAna()">Export to sheet</button>' : ''}
       </div></section>
-    <div id="anaOut">${A ? anaHtml(A) : '<div class="empty">Choose a period and tap Analyse.</div>'}</div>`;
+    <div>${A ? anaHtml(A) : '<div class="empty">Choose a period and tap Analyse.</div>'}</div>`;
   if(A){ S.drawCharts = () => drawAnaCharts(A); loadCharts(); }
 }
-function anaPreset(n){ const t = S.data.today || todayStr(); S.anaRange = { from:addDays(t,-n), to:t }; runAnalysis(); }
+function anaPreset(n){
+  const t = S.data.today || todayStr();
+  S.anaRange = n === 'season' ? { from: S.data.settings.SeasonStart || addDays(t,-90), to: t } : { from:addDays(t,-n), to:t };
+  runAnalysis();
+}
 async function runAnalysis(){
   if($('#anFrom')) S.anaRange = { from:$('#anFrom').value, to:$('#anTo').value };
   S.ana = await api('getAnalysis', S.token, S.anaRange.from, S.anaRange.to); render();
@@ -629,22 +1059,22 @@ async function exportAna(){
 function summaryMsg(){
   const A = S.ana, T = A.totals;
   const top = A.players.filter(p => p.Attendance !== null).slice(0, 5);
+  const improved = A.players.filter(p => p.TestChange !== null).sort((a,b) => b.TestChange - a.TestChange).slice(0, 3);
   const low = A.players.filter(p => p.Band === 'Low');
   const L = [`*${team().toUpperCase()} - ATTENDANCE SUMMARY*`, `Period: ${prettyDate(A.from)} to ${prettyDate(A.to)}`,
     `Sessions: ${T.Sessions} (${T.Gym} gym, ${T.Ground} ground)`, `Average attendance: ${v(T.AvgAttendance)}%`, '', '*Top attendance*'];
   top.forEach((p, i) => L.push(`${i+1}. ${p.Name} (${p.Batch}) - ${p.Attendance}%`));
+  if(improved.length){ L.push('', '*Most improved in max tests*'); improved.forEach((p, i) => L.push(`${i+1}. ${p.Name} (${p.Batch}) ${sign(p.TestChange,'%')}`)); }
   L.push('', '*By batch*');
   A.batches.forEach(b => L.push(`${b.Batch} Batch: ${v(b.Attendance)}%`));
   if(low.length){ L.push('', `*Below ${A.weights.low}% - please talk to the captain*`); low.forEach(p => L.push(`${p.Name} (${p.Batch}) - ${v(p.Attendance)}%`)); }
   showMsg('Summary message', L.join('\n'));
 }
-
 function anaHtml(A){
   const T = A.totals;
   const bandRow = b => `<tr><td class="band-${b.Band}">${b.Band}</td><td>${b.Range}</td><td class="n">${b.Players}</td>
-    <td class="n">${v(b.AvgAttendance)}%</td><td class="n"><b>${v(b.AvgFocusScore)}</b></td><td class="n">${v(b.AvgRating)}</td>
+    <td class="n">${v(b.AvgAttendance)}%</td><td class="n"><b>${v(b.AvgFocusScore)}</b></td><td class="n">${sign(b.AvgTestChange, '%')}</td>
     <td class="n">${sign(b.AvgRatingChange)}</td><td class="n">${sign(b.AvgStrengthChange, '%')}</td></tr>`;
-  const rpeWeeks = A.weekly.filter(w => w.RPE !== null);
   return `
     <div class="kpis">
       <div class="kpi"><div class="v">${T.Sessions}</div><div class="l">Sessions (${T.Gym} gym, ${T.Ground} ground)</div></div>
@@ -652,58 +1082,36 @@ function anaHtml(A){
       <div class="kpi"><div class="v">${T.Players}</div><div class="l">Active players</div></div>
     </div>
     <section class="card"><h2>Attendance bands - does turning up pay off?</h2>
-      <p class="muted">Focus score = ${Math.round(A.weights.participation*100)}% participation in each focus area + ${Math.round(A.weights.rating*100)}% captain rating. Changes compare the first half of the period with the second half (split at ${prettyDate(A.mid)}).</p>
-      <div class="tablewrap"><table><tr><th>Band</th><th>Attendance</th><th class="n">Players</th><th class="n">Avg att.</th><th class="n">Focus score</th><th class="n">Avg rating</th><th class="n">Rating change</th><th class="n">Strength change</th></tr>
+      <p class="muted">Focus score = ${Math.round(A.weights.participation*100)}% participation + ${Math.round(A.weights.rating*100)}% captain rating. Max test change = first to latest test in the period (positive = better). Rating and gym-log changes compare the first and second half of the period.</p>
+      <div class="tablewrap"><table><tr><th>Band</th><th>Attendance</th><th class="n">Players</th><th class="n">Avg att.</th><th class="n">Focus</th><th class="n">Max test chg</th><th class="n">Rating chg</th><th class="n">Lift chg</th></tr>
       ${A.bands.map(bandRow).join('')}</table></div>
       <div id="chBands" class="chart"></div>
       <p class="muted">${insight(A)}</p>
     </section>
-    <section class="card"><h2>Weekly attendance %</h2><div id="chWeekly" class="chart"></div>
-      ${rpeWeeks.length ? `<p class="muted">Average session effort (player RPE) per week: ${rpeWeeks.map(w => prettyDate(w.Week) + ' ' + w.RPE).join(', ')}</p>` : ''}</section>
+    <section class="card"><h2>Weekly attendance %</h2><div id="chWeekly" class="chart"></div></section>
     <section class="card"><h2>Focus areas</h2>
-      <p class="muted">Focus score per area for each attendance band. Shows which skills suffer most when players miss sessions.</p>
-      <div class="tablewrap"><table><tr><th>Area</th><th>Type</th><th class="n">Sessions</th><th class="n">Avg particip.</th><th class="n">Avg rating</th><th class="n">High</th><th class="n">Medium</th><th class="n">Low</th></tr>
-      ${A.areas.map(a => `<tr><td>${esc(a.Area)}</td><td>${tag(a.Type)}</td><td class="n">${a.Sessions}</td><td class="n">${v(a.AvgParticipation)}%</td><td class="n">${v(a.AvgRating)}</td>
+      <div class="tablewrap"><table><tr><th>Area</th><th>Type</th><th class="n">Sessions</th><th class="n">Avg particip.</th><th class="n">High</th><th class="n">Medium</th><th class="n">Low</th></tr>
+      ${A.areas.map(a => `<tr><td>${esc(a.Area)}</td><td>${tag(a.Type)}</td><td class="n">${a.Sessions}</td><td class="n">${v(a.AvgParticipation)}%</td>
         <td class="n">${v(a.HighScore)}</td><td class="n">${v(a.MediumScore)}</td><td class="n">${v(a.LowScore)}</td></tr>`).join('')}</table></div>
     </section>
-    <section class="card"><h2>By batch</h2><div id="chBatch" class="chart" style="height:${Math.max(170, A.batches.length*52)}px"></div>
+    <section class="card"><h2>By batch</h2>
       <div class="tablewrap"><table><tr><th>Batch</th><th class="n">Players</th><th class="n">Attendance</th><th class="n">Gym</th><th class="n">Ground</th></tr>
       ${A.batches.map(b => `<tr><td>${esc(b.Batch)}</td><td class="n">${b.Players}</td><td class="n">${v(b.Attendance)}%</td><td class="n">${v(b.Gym)}%</td><td class="n">${v(b.Ground)}%</td></tr>`).join('')}</table></div>
     </section>
-    <section class="card"><h2>Players</h2><p class="muted">Tap a player for the per-skill breakdown.</p>
-      <div class="tablewrap"><table><tr><th>Name</th><th>Batch</th><th class="n">Att.</th><th class="n">Gym</th><th class="n">Ground</th><th class="n">Focus</th><th class="n">Rating chg</th><th class="n">Strength chg</th><th class="n">Avg RPE</th><th>Band</th></tr>
-      ${A.players.map((p,i) => `<tr onclick="playerDetail(${i})" style="cursor:pointer"><td>${esc(p.Name)}</td><td>${esc(p.Batch)}</td>
-        <td class="n">${v(p.Attendance)}%</td><td class="n">${v(p.Gym)}%</td><td class="n">${v(p.Ground)}%</td><td class="n"><b>${v(p.FocusScore)}</b></td>
-        <td class="n">${sign(p.RatingChange)}</td><td class="n">${sign(p.StrengthChange,'%')}</td><td class="n">${v(p.AvgRPE)}</td><td class="band-${p.Band}">${p.Band}</td></tr>`).join('')}</table></div>
+    <section class="card"><h2>Players</h2><p class="muted">Tap a player for their full progress.</p>
+      <div class="tablewrap"><table><tr><th>Name</th><th>Batch</th><th class="n">Att.</th><th class="n">Focus</th><th class="n">Max test chg</th><th class="n">Rating chg</th><th class="n">Lift chg</th><th>Band</th></tr>
+      ${A.players.map(p => `<tr onclick="openPlayerProgress('${p.PlayerID}')" style="cursor:pointer"><td>${esc(p.Name)}</td><td>${esc(p.Batch)}</td>
+        <td class="n">${v(p.Attendance)}%</td><td class="n"><b>${v(p.FocusScore)}</b></td><td class="n">${sign(p.TestChange,'%')}</td>
+        <td class="n">${sign(p.RatingChange)}</td><td class="n">${sign(p.StrengthChange,'%')}</td><td class="band-${p.Band}">${p.Band}</td></tr>`).join('')}</table></div>
     </section>`;
 }
-function sign(x, suf){ if(x === null || x === undefined) return '-'; return (x > 0 ? '+' : '') + x + (suf || ''); }
 function insight(A){
   const h = A.bands[0], l = A.bands[2];
   if(!h.Players || !l.Players || h.AvgFocusScore === null || l.AvgFocusScore === null) return 'Need players in both the High and Low bands for a comparison.';
   let s = `High-attendance players average a focus score of <b>${h.AvgFocusScore}</b> vs <b>${l.AvgFocusScore}</b> for low-attendance players`;
-  if(h.AvgRatingChange !== null && l.AvgRatingChange !== null) s += `; their captain ratings changed by ${sign(h.AvgRatingChange)} vs ${sign(l.AvgRatingChange)}`;
-  if(h.AvgStrengthChange !== null && l.AvgStrengthChange !== null) s += `; logged strength changed ${sign(h.AvgStrengthChange,'%')} vs ${sign(l.AvgStrengthChange,'%')}`;
+  if(h.AvgTestChange !== null && l.AvgTestChange !== null) s += `; their max tests improved ${sign(h.AvgTestChange,'%')} vs ${sign(l.AvgTestChange,'%')}`;
+  if(h.AvgRatingChange !== null && l.AvgRatingChange !== null) s += `; captain ratings changed ${sign(h.AvgRatingChange)} vs ${sign(l.AvgRatingChange)}`;
   return s + '.';
-}
-function playerDetail(i){
-  const p = S.ana.players[i];
-  openModal(`<h2>${esc(p.Name)} <span class="muted">${esc(p.Batch)} Batch</span></h2>
-    <p>Attendance <b>${v(p.Attendance)}%</b> (${p.Attended}/${p.Possible}) - Focus score <b>${v(p.FocusScore)}</b> - <span class="band-${p.Band}">${p.Band}</span></p>
-    <div class="tablewrap"><table><tr><th>Focus area</th><th class="n">Attended</th><th class="n">Particip.</th><th class="n">Rating</th><th class="n">Score</th></tr>
-    ${p.areas.map(a => `<tr><td>${esc(a.Area)} <span class="muted">${a.Type}</span></td><td class="n">${a.Attended}/${a.Sessions}</td><td class="n">${v(a.Participation)}%</td><td class="n">${v(a.Rating)}</td><td class="n"><b>${v(a.Score)}</b></td></tr>`).join('')}</table></div>
-    ${p.lifts.length ? `<h3>Gym lifts (best weight, first half to second half)</h3><table>${p.lifts.map(l => `<tr><td>${esc(l.Exercise)}</td><td class="n">${v(l.First)} to ${v(l.Last)} kg</td><td class="n">${sign(l.Change,'%')}</td></tr>`).join('')}</table>` : ''}
-    <div class="actions"><button class="btn" onclick="closeModal()">Close</button></div>`);
-}
-
-/* ---------- Charts (Gym = dark, Ground = Pera red; one axis; built-in tooltips) ---------- */
-function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-function baseOpts(){
-  const ink = cssVar('--ink2'), line = cssVar('--line');
-  return { backgroundColor:'transparent', legend:{ position:'top', textStyle:{ color:ink } },
-    chartArea:{ left:44, right:12, top:36, bottom:40 }, fontName:'Inter',
-    hAxis:{ textStyle:{ color:ink }, gridlines:{ color:'transparent' }, baselineColor:line },
-    vAxis:{ textStyle:{ color:ink }, gridlines:{ color:line }, baselineColor:line, minValue:0 } };
 }
 function drawAnaCharts(A){
   if(!window.google || !google.visualization) return;
@@ -717,30 +1125,32 @@ function drawAnaCharts(A){
     new google.visualization.ColumnChart(el('chBands')).draw(d, o);
   }
   if(el('chWeekly') && A.weekly.length){
-    const d = google.visualization.arrayToDataTable([['Week','Gym %','Ground %']]
-      .concat(A.weekly.map(w => [prettyDate(w.Week).replace(/^\w+,?\s*/, ''), w.Gym, w.Ground])));
-    const o = baseOpts(); o.colors = [gym, ground]; o.lineWidth = 2; o.pointSize = 8; o.vAxis.maxValue = 100;
-    o.interpolateNulls = true; o.focusTarget = 'category';
+    const d = google.visualization.arrayToDataTable([['Week','Gym %','Ground %']].concat(A.weekly.map(w => [shortDate(w.Week), w.Gym, w.Ground])));
+    const o = baseOpts(); o.colors = [gym, ground]; o.lineWidth = 2; o.pointSize = 8; o.vAxis.maxValue = 100; o.interpolateNulls = true; o.focusTarget = 'category';
     new google.visualization.LineChart(el('chWeekly')).draw(d, o);
   }
-  if(el('chBatch') && A.batches.length){
-    const d = google.visualization.arrayToDataTable([['Batch','Gym %','Ground %']]
-      .concat(A.batches.map(b => [b.Batch + ' Batch', b.Gym || 0, b.Ground || 0])));
-    const o = baseOpts(); o.colors = [gym, ground]; o.hAxis.maxValue = 100; o.hAxis.minValue = 0; o.chartArea.left = 76; o.bar = { groupWidth:'60%' };
-    o.vAxis.gridlines = { color:'transparent' }; o.hAxis.gridlines = { color:cssVar('--line') };
-    new google.visualization.BarChart(el('chBatch')).draw(d, o);
-  }
 }
-window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => S.drawCharts && S.chartsReady && S.drawCharts(), 250); });
 
 /* =========================================================
-   PLAYER - Sessions (upcoming + availability + feedback)
+   PLAYER - Home
    ========================================================= */
-function renderUpcoming(){
-  const d = S.pdata;
-  const needFb = d.recent.filter(s => s.my !== 'Absent' && s.my !== 'Excused' && !s.feedback && s.Date >= addDays(d.today, -3));
+function renderPlayerHome(){
+  const d = S.pdata, P = d.progress, T = P.totals;
+  const needFb = d.recent.filter(s => s.Status !== 'Absent' && s.Status !== 'Excused' && !s.feedback && s.Date >= addDays(d.today, -3));
+  const newVids = d.videos.filter(x => !x.watched);
   $('#app').innerHTML = `
     <h2>Hi ${esc(d.me.name.split(' ')[0])}</h2>
+    ${d.missing ? `<section class="card alert-card"><b>We have missed you at practice</b>
+      <p style="margin:6px 0">It has been ${d.missing.Days} days since your last session (${d.missing.Missed} missed). If you are injured or unavailable, let the captain know.</p></section>` : ''}
+    ${!d.me.inWhatsApp && d.settings.WhatsAppGroupLink ? `<section class="card"><b>Join the ${esc(team())} WhatsApp group</b>
+      <p class="muted" style="margin:4px 0 8px">All updates are posted there.</p><a class="btn dark sm" href="${esc(d.settings.WhatsAppGroupLink)}" target="_blank" rel="noopener">Join the group</a></section>` : ''}
+    <div class="kpis">
+      <div class="kpi"><div class="v">${v(T.Attendance)}${T.Attendance===null?'':'%'}</div><div class="l">Attendance since day one</div></div>
+      <div class="kpi"><div class="v">${T.Streak}</div><div class="l">Session streak (best ${T.BestStreak})</div></div>
+    </div>
+    ${newVids.length ? `<section class="card" style="border-left:4px solid var(--red)"><b>${newVids.length} new video${newVids.length>1?'s':''} to watch</b>
+      <div class="muted">${newVids.slice(0,3).map(x => esc(x.Title)).join(', ')}</div>
+      <button class="btn sm primary" style="margin-top:8px" onclick="setTab('videos')">Watch now</button></section>` : ''}
     ${needFb.length ? `<section class="card" style="border-left:4px solid var(--red)"><h3 style="margin-top:0">How did it go?</h3>
       ${needFb.map(s => `<div class="row" style="margin-bottom:6px"><span>${tag(s.Type)} ${prettyDate(s.Date)}</span><button class="btn sm primary" onclick="openFeedback('${s.SessionID}')">Give feedback</button></div>`).join('')}
     </section>` : ''}
@@ -752,14 +1162,15 @@ function renderUpcoming(){
       <div class="actions">
         <button class="btn sm ${s.avail && s.avail.Status==='Going'?'dark':''}" onclick="setAvail('${s.SessionID}','Going')">I'll be there</button>
         <button class="btn sm ${s.avail && s.avail.Status==='Not going'?'dark':''}" onclick="setAvail('${s.SessionID}','Not going')">Can't make it</button>
-        ${s.Type==='Gym' ? `<button class="btn sm primary" onclick="S.logSession='${s.SessionID}';setTab('log')">Log this workout</button>` : ''}
+        ${s.Type==='Gym' ? `<button class="btn sm primary" onclick="S.logSession='${s.SessionID}';setTab('train')">Log this workout</button>` : ''}
       </div>
       ${s.avail ? `<div class="note">You said: ${esc(s.avail.Status)}${s.avail.Reason ? ' - ' + esc(s.avail.Reason) : ''}</div>` : ''}
     </div>`).join('') || '<div class="empty">No sessions published yet.</div>'}
     <h3>Recent sessions</h3>
-    <div class="card"><table>${d.recent.map(s => `<tr><td>${tag(s.Type)} ${prettyDate(s.Date)}<div class="muted">${esc(s.FocusAreas)}</div></td>
-      <td class="right"><span class="pill ${s.my==='Absent'?'red':s.my==='Excused'?'gray':''}">${esc(s.my)}</span>
-      ${s.my !== 'Absent' && s.my !== 'Excused' ? `<div><button class="btn sm" style="margin-top:4px" onclick="openFeedback('${s.SessionID}')">${s.feedback?'Edit feedback':'Feedback'}</button></div>` : ''}</td></tr>`).join('') || '<tr><td class="empty">None yet</td></tr>'}</table></div>`;
+    <div class="card"><table>${d.recent.slice(0,6).map(s => `<tr><td>${tag(s.Type)} ${prettyDate(s.Date)}<div class="muted">${esc(s.FocusAreas)}</div></td>
+      <td class="right"><span class="pill ${s.Status==='Absent'?'red':s.Status==='Excused'?'gray':''}">${esc(s.Status)}</span>
+      ${s.Status !== 'Absent' && s.Status !== 'Excused' ? `<div><button class="btn sm" style="margin-top:4px" onclick="openFeedback('${s.SessionID}')">${s.feedback?'Edit feedback':'Feedback'}</button></div>` : ''}</td></tr>`).join('') || '<tr><td class="empty">None yet</td></tr>'}</table>
+      <button class="btn sm" onclick="setTab('progress')">See all sessions and progress</button></div>`;
 }
 async function setAvail(id, status){
   let reason = '';
@@ -768,11 +1179,11 @@ async function setAvail(id, status){
 }
 function openFeedback(id){
   const s = S.pdata.recent.find(x => x.SessionID === id);
-  const sel = (id, n, lo, hi) => `<select id="${id}"><option value="">-</option>${Array.from({length:hi-lo+1},(_,i)=>lo+i).map(k=>`<option>${k}</option>`).join('')}</select>`;
+  const sel = (id, lo, hi) => `<select id="${id}"><option value="">-</option>${Array.from({length:hi-lo+1},(_,i)=>lo+i).map(k=>`<option>${k}</option>`).join('')}</select>`;
   openModal(`<h2>Feedback: ${esc(s.Type)} ${prettyDate(s.Date)}</h2>
-    <label>How hard was it? (RPE: 1 very easy - 10 maximum effort)</label>${sel('fbRPE',0,1,10)}
-    <div class="grid2"><div><label>Energy (1 low - 5 high)</label>${sel('fbEnergy',0,1,5)}</div>
-    <div><label>Soreness (1 none - 5 very sore)</label>${sel('fbSore',0,1,5)}</div></div>
+    <label>How hard was it? (1 very easy - 10 maximum effort)</label>${sel('fbRPE',1,10)}
+    <div class="grid2"><div><label>Energy (1 low - 5 high)</label>${sel('fbEnergy',1,5)}</div>
+    <div><label>Soreness (1 none - 5 very sore)</label>${sel('fbSore',1,5)}</div></div>
     <label>Anything to tell the captain? (niggles, injuries, what you learned)</label><textarea id="fbComment" rows="3"></textarea>
     <div class="actions"><button class="btn primary" onclick="sendFeedback('${id}')">Submit</button><button class="btn" onclick="closeModal()">Cancel</button></div>`);
 }
@@ -784,7 +1195,7 @@ async function sendFeedback(id){
 /* =========================================================
    PLAYER - Gym log (draft auto-saved on the phone)
    ========================================================= */
-const DRAFT = 'peralions_draft';
+const DRAFT = 'peralions2_draft';
 function blankRow(){ return { Exercise:'', Sets:'', Reps:'', Weight:'', RPE:'' }; }
 function renderLog(){
   const d = S.pdata;
@@ -834,41 +1245,24 @@ async function submitLog(){
 async function delLog(id){ if(!confirm('Delete this entry?')) return; S.pdata = await api('deleteGymLog', S.token, id); renderLog(); }
 
 /* =========================================================
-   PLAYER - My stats
+   PLAYER - Progress & Me
    ========================================================= */
-function renderStats(){
-  const d = S.pdata, m = d.stats;
-  if(!m){ $('#app').innerHTML = '<div class="empty">No stats yet.</div>'; return; }
-  const exs = {}; d.logs.forEach(l => { if(Number(l.Weight) > 0) (exs[l.Exercise] = exs[l.Exercise] || []).push(l); });
-  const exNames = Object.keys(exs).sort((a,b) => exs[b].length - exs[a].length);
-  if(!S.statEx || !exs[S.statEx]) S.statEx = exNames[0];
+function renderMyProgress(){ showProgress(S.pdata.progress, false); }
+
+function renderMe(){
+  const d = S.pdata, me = d.me;
   $('#app').innerHTML = `
-    <p class="muted">Last 90 days</p>
-    <div class="kpis">
-      <div class="kpi"><div class="v">${v(m.Attendance)}%</div><div class="l">My attendance (${m.Attended}/${m.Possible}). Team average ${v(d.team.AvgAttendance)}%</div></div>
-      <div class="kpi"><div class="v">${v(m.Gym)}%</div><div class="l">Gym</div></div>
-      <div class="kpi"><div class="v">${v(m.Ground)}%</div><div class="l">Ground</div></div>
-      <div class="kpi"><div class="v">${v(m.FocusScore)}</div><div class="l">Focus score - <span class="band-${m.Band}">${m.Band}</span></div></div>
-    </div>
-    <section class="card"><h2>Focus areas</h2>
-      ${m.areas.map(a => `<div style="margin-bottom:10px"><div class="row" style="justify-content:space-between"><span>${esc(a.Area)} <span class="muted">${a.Type}</span></span>
-        <span class="muted right">${a.Attended}/${a.Sessions} sessions${a.Rating!==null?`, rating ${a.Rating}`:''}</span></div><div class="bar"><i style="width:${a.Participation||0}%"></i></div></div>`).join('') || '<div class="muted">No completed sessions yet.</div>'}
+    <section class="card"><h2>My profile</h2>
+      <table><tr><td class="muted">Name</td><td>${esc(me.name)}</td></tr>
+      <tr><td class="muted">Batch</td><td>${esc(me.batch)}</td></tr>
+      ${me.position ? `<tr><td class="muted">Position</td><td>${esc(me.position)}</td></tr>` : ''}
+      <tr><td class="muted">Mobile (login)</td><td>${esc(me.phone)}</td></tr>
+      <tr><td class="muted">Member since</td><td>${me.joined ? prettyDate(me.joined) : '-'}</td></tr></table>
+      <p class="note">To change your name, batch or number, ask the captain.</p>
     </section>
-    <section class="card"><h2>Strength progress</h2>
-      ${exNames.length ? `<select onchange="S.statEx=this.value;renderStats()">${exNames.map(e => `<option ${e===S.statEx?'selected':''}>${esc(e)}</option>`).join('')}</select>
-      <div id="chLift" class="chart"></div>` : '<div class="muted">Log your gym work to see progress here.</div>'}
-    </section>`;
-  if(exNames.length){
-    const pts = {}; exs[S.statEx].forEach(l => { const dt = l.Timestamp.slice(0,10); pts[dt] = Math.max(pts[dt]||0, Number(l.Weight)); });
-    S.drawCharts = () => {
-      const el = document.getElementById('chLift'); if(!el) return;
-      const data = google.visualization.arrayToDataTable([['Date','Best kg']].concat(Object.keys(pts).sort().map(k => [prettyDate(k), pts[k]])));
-      const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue;
-      o.title = S.statEx + ' - best weight per day (kg)'; o.titleTextStyle = { color:cssVar('--ink'), fontSize:13 };
-      new google.visualization.LineChart(el).draw(data, o);
-    };
-    loadCharts();
-  }
+    ${d.settings.WhatsAppGroupLink ? `<section class="card"><h2>WhatsApp group</h2><a class="btn dark" href="${esc(d.settings.WhatsAppGroupLink)}" target="_blank" rel="noopener">Open the ${esc(team())} group</a></section>` : ''}
+    ${renderChangePw(false)}
+    <button class="btn block" onclick="doLogout()">Log out</button>`;
 }
 
 start();
