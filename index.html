@@ -147,6 +147,35 @@ nav.tabs button.on .nbadge{background:#fff;color:var(--red)}
 .trow{padding:4px 0;border-bottom:1px solid var(--line)} .trow input{max-width:110px;flex:0 0 110px}
 .unseen{border-left:4px solid var(--red) !important}
 .test-card .grid3 b{font-size:16px}
+
+/* v3 analytics */
+:root{ --c-gym:#2a78d6; --c-ground:#e10600; --c-3:#1baf7a; --ok:#1d7f45; --warn:#a86a00; --bad:#e10600; --none:#9a9a9a }
+@media (prefers-color-scheme: dark){ :root{ --c-gym:#3987e5; --c-ground:#ff3b30; --c-3:#199e70; --ok:#55c785; --warn:#e3a63a; --bad:#ff3b30; --none:#6f6f6f } }
+.chart.radar{height:320px}
+.lights{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.light{display:flex;gap:10px;align-items:center;background:var(--card-glass);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.light .lt{font-size:12px;color:var(--ink2)} .light b{font-size:15px}
+.dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px;display:inline-block;background:var(--none)}
+.l-green .dot{background:var(--ok)} .l-amber .dot{background:var(--warn)} .l-red .dot{background:var(--bad)}
+.insight{padding:8px 10px;border-left:4px solid var(--none);background:var(--bg);border-radius:6px;margin-bottom:6px;font-size:14px}
+.i-green{border-left-color:var(--ok)} .i-amber{border-left-color:var(--warn)} .i-red{border-left-color:var(--bad)}
+.heat{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+.hdays,.hcol{display:grid;grid-template-rows:14px repeat(7,14px);gap:3px}
+.hdays i{font-style:normal;font-size:10px;color:var(--muted);line-height:14px}
+.hgrid{display:flex;gap:3px}
+.hcol i,.hlegend i{width:14px;height:14px;border-radius:3px;background:var(--bg);border:1px solid var(--line);display:block}
+.hm{font-size:10px;color:var(--muted);line-height:14px;white-space:nowrap;width:14px}
+.s-Present{background:var(--ok) !important;border-color:var(--ok) !important}
+.s-Late{background:var(--warn) !important;border-color:var(--warn) !important}
+.s-Excused{background:var(--none) !important;border-color:var(--none) !important}
+.s-Absent{background:transparent !important;border:2px solid var(--bad) !important}
+.hcol i.future{opacity:.3}
+.hlegend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px;color:var(--ink2)}
+.hlegend span{display:flex;gap:5px;align-items:center}
+.dv{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.spark{color:var(--c-ground);display:block}
+table.squad td{vertical-align:middle}
+.navrow{margin-bottom:10px} .navrow .btn[disabled]{opacity:.4}
 </style>
 </head>
 <body>
@@ -405,10 +434,10 @@ function saveCache(){
 
 /* ================= Tabs ================= */
 const ADMIN_TABS = [['home','Home'],['sessions','Sessions'],['players','Players'],['tests','Tests'],['videos','Videos'],['analysis','Analysis']];
-const PLAYER_TABS = [['home','Home'],['train','Gym log'],['progress','Progress'],['videos','Videos'],['me','Me']];
+const PLAYER_TABS = [['home','Home'],['train','Gym log'],['progress','My analysis'],['videos','Videos'],['me','Me']];
 
 function setTab(t){
-  S.tab = t; S.view = null; S.drawCharts = null; window.scrollTo(0,0);
+  S.tab = t; S.view = null; S.drawCharts = null; destroyCharts(); window.scrollTo(0,0);
   const tabs = S.user.role === 'admin' ? ADMIN_TABS : PLAYER_TABS;
   const nav = $('#tabs');
   nav.style.display = t === 'attend' ? 'none' : 'flex';
@@ -425,8 +454,10 @@ function badge(k){
   return n ? `<span class="nbadge">${n}</span>` : '';
 }
 function render(){
+  S.seq = (S.seq || 0) + 1;
   saveCache();
   if(S.view === 'progress') return renderProgressView();
+  destroyCharts();
   const admin = S.user.role === 'admin';
   const f = (admin ? { home:renderAdminHome, sessions:renderSessions, attend:renderAttend, players:renderPlayers,
                        tests:renderTests, videos:renderAdminVideos, analysis:renderAnalysis }
@@ -434,108 +465,254 @@ function render(){
   f && f();
 }
 
-/* Google Charts is only downloaded the first time a chart is needed. */
+/* Charts: Chart.js is only downloaded the first time a chart is needed. */
 function loadCharts(){
-  if(S.chartsReady){ S.drawCharts && S.drawCharts(); return; }
+  if(window.Chart){ S.chartsReady = true; S.drawCharts && S.drawCharts(); return; }
   if(S.chartsLoading) return;
   S.chartsLoading = true;
   const sc = document.createElement('script');
-  sc.src = 'https://www.gstatic.com/charts/loader.js';
-  sc.onload = () => {
-    google.charts.load('current', {packages:['corechart']});
-    google.charts.setOnLoadCallback(() => { S.chartsReady = true; if(S.drawCharts) S.drawCharts(); });
-  };
+  sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+  sc.onload = () => { S.chartsReady = true; if(S.drawCharts) S.drawCharts(); };
   document.head.appendChild(sc);
 }
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
-function baseOpts(){
+function destroyCharts(){ (S.charts || []).forEach(c => { try{ c.destroy(); }catch(e){} }); S.charts = []; }
+function merge(a, b){ Object.keys(b).forEach(k => { if(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object') merge(a[k], b[k]); else a[k] = b[k]; }); return a; }
+function cOpts(extra){
   const ink = cssVar('--ink2'), line = cssVar('--line');
-  return { backgroundColor:'transparent', legend:{ position:'top', textStyle:{ color:ink } },
-    chartArea:{ left:44, right:12, top:36, bottom:40 }, fontName:'Inter',
-    hAxis:{ textStyle:{ color:ink }, gridlines:{ color:'transparent' }, baselineColor:line },
-    vAxis:{ textStyle:{ color:ink }, gridlines:{ color:line }, baselineColor:line, minValue:0 } };
+  return merge({ responsive:true, maintainAspectRatio:false, animation:{ duration:300 },
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{ display:true, position:'top', align:'start', labels:{ color:ink, boxWidth:12, boxHeight:12, usePointStyle:true, font:{ family:'Inter', size:12 } } },
+              tooltip:{ backgroundColor:'#111', titleFont:{ family:'Inter' }, bodyFont:{ family:'Inter' }, padding:10, cornerRadius:6 } },
+    scales:{ x:{ grid:{ display:false }, border:{ color:line }, ticks:{ color:ink, maxRotation:0, autoSkip:true, autoSkipPadding:8, font:{ family:'Inter', size:11 } } },
+             y:{ beginAtZero:true, grid:{ color:line }, border:{ display:false }, ticks:{ color:ink, font:{ family:'Inter', size:11 }, maxTicksLimit:6 } } } }, extra || {});
 }
-window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => S.drawCharts && S.chartsReady && S.drawCharts(), 250); });
+/** Draws a chart into <div id=...>. Each div gets a fresh canvas. */
+function mkChart(id, type, data, extra, plugins){
+  const el = document.getElementById(id);
+  if(!el || !window.Chart) return null;
+  el.innerHTML = ''; const cv = document.createElement('canvas'); el.appendChild(cv);
+  const ch = new Chart(cv, { type, data, options: cOpts(extra), plugins: plugins || [] });
+  S.charts = S.charts || []; S.charts.push(ch);
+  return ch;
+}
+/** Shaded horizontal bands behind a chart (e.g. ACWR safe zone). */
+function bandsPlugin(bands){
+  return { id:'bands', beforeDatasetsDraw(chart){
+    const { ctx, chartArea:a, scales:{ y } } = chart;
+    bands.forEach(b => {
+      const top = y.getPixelForValue(Math.min(b.to, y.max)), bot = y.getPixelForValue(Math.max(b.from, y.min));
+      if(bot <= top) return;
+      ctx.save(); ctx.fillStyle = b.color; ctx.fillRect(a.left, top, a.right - a.left, bot - top); ctx.restore();
+    }); } };
+}
+const C_GYM = () => cssVar('--c-gym'), C_GROUND = () => cssVar('--c-ground'), C_REF = () => cssVar('--muted');
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { if(S.drawCharts && window.Chart){ destroyCharts(); S.drawCharts(); } }, 300); });
+
 
 /* =========================================================
-   PROGRESS (shared: player's own page and admin's player view)
+   PLAYER ANALYSIS (shared: player's own Progress page and the captain's view of any player)
    ========================================================= */
-function progressHtml(P, adminView){
-  const T = P.totals, pl = P.player;
+const LIGHT_WORD = { green:'Good', amber:'Watch', red:'Alert', gray:'No data yet' };
+function light(level, label){ return `<div class="light l-${level}"><span class="dot"></span><div><div class="lt">${esc(label)}</div><b>${LIGHT_WORD[level] || level}</b></div></div>`; }
+
+function heatmapHtml(cal, start, today){
+  if(!cal.length) return '<p class="muted">No completed sessions yet.</p>';
+  const byDay = {};
+  const rank = { Present:4, Late:3, Excused:2, Absent:1 };
+  cal.forEach(c => { if(!byDay[c.Date] || rank[c.Status] > rank[byDay[c.Date].Status]) byDay[c.Date] = c; });
+  // Monday of the first week shown (max 26 weeks)
+  const mon = d => { const [y,m,dd] = d.split('-').map(Number); const x = new Date(Date.UTC(y,m-1,dd)); const k = (x.getUTCDay()+6)%7; return addDays(d, -k); };
+  let first = mon(start); const lastMon = mon(today);
+  if(daysBetween(first, lastMon) > 25*7) first = addDays(lastMon, -25*7);
+  let cols = '';
+  for(let w = first; w <= lastMon; w = addDays(w, 7)){
+    let cells = '';
+    for(let i = 0; i < 7; i++){
+      const d = addDays(w, i), c = byDay[d];
+      const cls = d > today ? 'future' : c ? 's-' + c.Status : '';
+      cells += `<i class="${cls}" title="${prettyDate(d)}${c ? ': ' + c.Type + ' - ' + c.Status : ''}"></i>`;
+    }
+    cols += `<div class="hcol"><span class="hm">${Number(w.slice(8)) <= 7 ? monthName(w.slice(0,7)).split(' ')[0] : ''}</span>${cells}</div>`;
+  }
+  return `<div class="heat"><div class="hdays"><span></span><i>M</i><i></i><i>W</i><i></i><i>F</i><i></i><i>S</i></div><div class="hgrid">${cols}</div></div>
+    <div class="hlegend"><span><i class="s-Present"></i>Present</span><span><i class="s-Late"></i>Late</span><span><i class="s-Excused"></i>Excused</span><span><i class="s-Absent"></i>Missed</span><span><i></i>No session</span></div>`;
+}
+
+function analyticsHtml(P, adminView){
+  const T = P.totals, pl = P.player, M = P.monitoring;
+  if(!M) return progressBasicHtml(P, adminView);
+  const st = M.status;
+  const pctl = M.percentiles;
   const testCards = P.tests.map((t, i) => `<div class="card test-card">
       <div class="sess-h"><b>${esc(t.Exercise)}</b>${t.IsPB ? '<span class="pill red">New personal best</span>' : ''}</div>
       <div class="grid3" style="margin-top:6px">
         <div><div class="muted">First</div><b>${v(t.First)} ${esc(t.Unit)}</b></div>
         <div><div class="muted">Latest (${shortDate(t.LatestDate)})</div><b>${v(t.Latest)} ${esc(t.Unit)}</b></div>
-        <div><div class="muted">Change</div><b class="${t.Change > 0 ? 'up' : t.Change < 0 ? 'down' : ''}">${sign(t.Change, '%')}</b></div>
+        <div><div class="muted">Change</div><b class="${t.Better==='Track' ? '' : t.Change > 0 ? 'up' : t.Change < 0 ? 'down' : ''}">${sign(t.Change, '%')}</b></div>
       </div>
       ${t.points.length > 1 ? `<div id="chTest${i}" class="chart small"></div>` : '<p class="muted">More results will show a growth chart.</p>'}
     </div>`).join('');
+  const relKeys = Object.keys(M.rel || {});
   return `
-    <div class="card"><div class="sess-h"><div><h2 style="margin:0">${esc(pl.Name)}</h2>
-      <div class="muted">${esc(pl.Batch)} Batch${pl.Position ? ' - ' + esc(pl.Position) : ''} - tracking since ${prettyDate(P.start)} (${T.DaysSinceStart} days)</div></div></div></div>
+    <div class="card"><h2 style="margin:0">${esc(pl.Name)}</h2>
+      <div class="muted">${esc(pl.Batch)} Batch${pl.Position ? ' - ' + esc(pl.Position) : ''} - tracking since ${prettyDate(P.start)} (${T.DaysSinceStart} days)${M.BodyWeight ? ' - body weight ' + M.BodyWeight + ' kg' : ''}</div></div>
+    <div class="lights">${light(st.Attendance,'Attendance')}${light(st.Load,'Training load')}${light(st.Wellness,'Wellness')}${light(st.Strength,'Strength')}</div>
+    <section class="card"><h2>Insights</h2>
+      ${M.insights.map(i => `<div class="insight i-${i.level}">${esc(i.text)}</div>`).join('')}</section>
     <div class="kpis">
-      <div class="kpi"><div class="v">${v(T.Attendance)}${T.Attendance === null ? '' : '%'}</div><div class="l">Attendance since day one (${T.Attended}/${T.Possible})</div></div>
-      <div class="kpi"><div class="v">${T.GymCount}</div><div class="l">Gym sessions (${v(T.Gym)}${T.Gym===null?'':'%'})</div></div>
-      <div class="kpi"><div class="v">${T.GroundCount}</div><div class="l">Ground sessions (${v(T.Ground)}${T.Ground===null?'':'%'})</div></div>
+      <div class="kpi"><div class="v">${v(T.Attendance)}${T.Attendance===null?'':'%'}</div><div class="l">Attendance since day one (${T.Attended}/${T.Possible})</div></div>
+      <div class="kpi"><div class="v">${v(M.Att28)}${M.Att28===null?'':'%'}</div><div class="l">Last 4 weeks${M.AttPrev28!==null && M.Att28!==null ? ' (' + sign(M.Att28 - M.AttPrev28) + ' pts)' : ''}</div></div>
+      <div class="kpi"><div class="v">${T.GymCount} / ${T.GroundCount}</div><div class="l">Gym / ground sessions attended</div></div>
       <div class="kpi"><div class="v">${T.Streak}</div><div class="l">Current streak (best ${T.BestStreak})</div></div>
-      <div class="kpi"><div class="v">${T.DaysSinceLast === null ? '-' : T.DaysSinceLast}</div><div class="l">Days since last session${T.LastAttended ? ' (' + shortDate(T.LastAttended) + ')' : ''}</div></div>
-      <div class="kpi"><div class="v">${P.videos.Watched}/${P.videos.Total}</div><div class="l">Videos watched</div></div>
     </div>
-    <section class="card"><h2>Monthly attendance</h2>
-      ${P.months.length ? `<div id="chMonths" class="chart"></div>
-      <div class="tablewrap"><table><tr><th>Month</th><th class="n">Sessions</th><th class="n">Attendance</th><th class="n">Avg effort</th><th class="n">Gym volume (kg)</th><th class="n">Rating</th></tr>
+
+    <h3>Attendance</h3>
+    <section class="card"><h2>Session calendar</h2>${heatmapHtml(M.calendar, P.start, P.today)}</section>
+    <section class="card"><h2>Rolling 4-week attendance</h2>
+      <p class="muted">Share of sessions attended over the last 4 weeks, compared with the squad average (dashed).</p>
+      <div id="chRoll" class="chart"></div></section>
+
+    <h3>Training load</h3>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${v(M.ACWR)}</div><div class="l">ACWR (acute : chronic)</div></div>
+      <div class="kpi"><div class="v">${(M.Load7||0).toLocaleString()}</div><div class="l">Load last 7 days (AU)</div></div>
+      <div class="kpi"><div class="v">${v(M.Monotony)}</div><div class="l">Monotony (over 2 = too samey)</div></div>
+      <div class="kpi"><div class="v">${M.Strain === null ? '-' : M.Strain.toLocaleString()}</div><div class="l">Strain this week</div></div>
+    </div>
+    <section class="card"><h2>Weekly training load</h2>
+      <p class="muted">Estimated load = effort rating (1-10) x ${M.minutes.Gym} min for gym, ${M.minutes.Ground} min for ground sessions.</p>
+      <div id="chLoad" class="chart"></div></section>
+    <section class="card"><h2>Acute : chronic workload ratio</h2>
+      <p class="muted">This week's load vs the usual load of the last 4 weeks (EWMA). Green band 0.8-1.3 is the safe zone; above 1.5 is a spike with higher injury risk.</p>
+      <div id="chAcwr" class="chart small"></div></section>
+    <section class="card"><h2>Wellness</h2>
+      <p class="muted">From after-session feedback: energy and (inverted) soreness, 1-5. Dashed line = own 4-week normal.</p>
+      <div id="chWell" class="chart small"></div></section>
+
+    <h3>Strength and gym</h3>
+    ${testCards || '<div class="card muted">No max test results yet. They are recorded by the captain each month.</div>'}
+    ${relKeys.length ? `<section class="card"><h2>Strength per kg of body weight</h2><div id="chRel" class="chart small"></div></section>` : ''}
+    <section class="card"><h2>Estimated 1RM (from gym logs)</h2>
+      ${M.e1rm.length ? `<p class="muted">Epley formula: weight x (1 + reps / 30). Larger points are new personal bests.</p>
+        <select onchange="S.e1Ex=this.value;destroyCharts();S.drawCharts()">${M.e1rm.map(e => `<option ${e.Exercise===S.e1Ex?'selected':''}>${esc(e.Exercise)}</option>`).join('')}</select>
+        <div id="chE1" class="chart small"></div>`
+      : `<p class="muted">${adminView ? 'No gym logs yet.' : 'Log your sets in the Gym log tab to see your estimated 1RM grow.'}</p>`}
+    </section>
+    <section class="card"><h2>Weekly gym volume</h2><p class="muted">Sets x reps x kg from gym logs.</p><div id="chVol" class="chart small"></div></section>
+
+    <h3>Compared with the squad</h3>
+    <section class="card"><h2>Squad profile</h2>
+      ${pctl.length >= 3 ? `<p class="muted">Percentile within the ${M.squadSize} active players (50 = squad middle, 100 = best). Names of other players are never shown.</p>
+        <div id="chRadar" class="chart radar"></div>
+        <table>${pctl.map(p => `<tr><td>${esc(p.Long || p.Label)}</td><td class="n">${p.Percentile}th</td></tr>`).join('')}</table>`
+      : '<p class="muted">Needs a few weeks of squad data.</p>'}
+    </section>
+
+    <h3>History</h3>
+    <section class="card"><h2>Monthly summary</h2>
+      ${P.months.length ? `<div class="tablewrap"><table><tr><th>Month</th><th class="n">Sessions</th><th class="n">Attendance</th><th class="n">Avg effort</th><th class="n">Gym volume</th><th class="n">Rating</th></tr>
       ${P.months.slice().reverse().map(m => `<tr><td>${monthName(m.Month)}</td><td class="n">${m.Attended}/${m.Possible}</td><td class="n">${v(m.Attendance)}%</td><td class="n">${v(m.RPE)}</td><td class="n">${m.Volume ? m.Volume.toLocaleString() : '-'}</td><td class="n">${v(m.Rating)}</td></tr>`).join('')}</table></div>`
       : '<p class="muted">No completed sessions yet.</p>'}
-    </section>
-    <h3>Monthly max tests</h3>
-    ${testCards || '<div class="card muted">No test results yet. Max tests are recorded by the captain each month.</div>'}
-    <section class="card"><h2>Gym lifts (from gym logs)</h2>
-      ${P.lifts.length ? `<select onchange="S.liftEx=this.value;drawProgressCharts(S.curProg)">${P.lifts.map(l => `<option ${l.Exercise===S.liftEx?'selected':''}>${esc(l.Exercise)}</option>`).join('')}</select>
-        <div id="chLift" class="chart small"></div>
-        <table>${P.lifts.slice(0,8).map(l => `<tr><td>${esc(l.Exercise)}</td><td class="n">${l.First} to ${l.Best} kg</td><td class="n">${sign(l.Change,'%')}</td></tr>`).join('')}</table>`
-      : `<p class="muted">${adminView ? 'No gym logs yet.' : 'Log your gym work in the Gym log tab to see your lifts grow here.'}</p>`}
     </section>
     <section class="card"><h2>Focus areas trained</h2>
       ${P.areas.length ? (() => { const mx = Math.max.apply(null, P.areas.map(a => a.Count)); return P.areas.map(a => `<div style="margin-bottom:8px"><div class="row" style="justify-content:space-between"><span>${esc(a.Area)} <span class="muted">${a.Type}</span></span><span class="muted right">${a.Count} sessions</span></div><div class="bar"><i style="width:${Math.round(a.Count/mx*100)}%"></i></div></div>`).join(''); })()
       : '<p class="muted">Nothing yet.</p>'}
     </section>
-    <section class="card"><h2>All sessions (${P.history.length})</h2>
-      ${P.history.length ? `<table>${P.history.map(h => `<tr><td>${tag(h.Type)} ${prettyDate(h.Date)}<div class="muted">${esc(h.FocusAreas)}${h.Notes ? ' - ' + esc(h.Notes) : ''}</div></td>
-        <td class="right"><span class="pill ${h.Status==='Absent'?'red':h.Status==='Excused'?'gray':''}">${esc(h.Status)}</span>
-        ${h.Rating !== null || h.RPE ? `<div class="note">${h.Rating !== null ? 'Rating ' + h.Rating : ''}${h.Rating !== null && h.RPE ? ', ' : ''}${h.RPE ? 'Effort ' + h.RPE : ''}</div>` : ''}</td></tr>`).join('')}</table>`
-      : '<p class="muted">No sessions since day one yet.</p>'}
-    </section>`;
+    <section class="card"><h2>All sessions (${P.history.length})</h2>${historyTable(P.history)}</section>`;
 }
 
-function drawProgressCharts(P){
-  if(!P || !window.google || !google.visualization) return;
-  const el = id => document.getElementById(id);
-  if(el('chMonths') && P.months.length){
-    const d = google.visualization.arrayToDataTable([['Month','Attendance %',{role:'annotation'}]]
-      .concat(P.months.map(m => [monthName(m.Month), m.Attendance || 0, m.Attendance === null ? '' : m.Attendance + '%'])));
-    const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.vAxis.maxValue = 100; o.bar = { groupWidth:'50%' };
-    new google.visualization.ColumnChart(el('chMonths')).draw(d, o);
-  }
-  P.tests.forEach((t, i) => {
-    if(!el('chTest' + i)) return;
-    const d = google.visualization.arrayToDataTable([['Date', t.Exercise + ' (' + t.Unit + ')']].concat(t.points.map(p => [shortDate(p.Date), p.Value])));
-    const o = baseOpts(); o.colors = [cssVar('--red')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue;
-    o.vAxis.direction = t.Better === 'Lower' ? -1 : 1; o.chartArea.top = 14;
-    new google.visualization.LineChart(el('chTest' + i)).draw(d, o);
-  });
-  if(el('chLift') && P.lifts.length){
-    const l = P.lifts.find(x => x.Exercise === S.liftEx) || P.lifts[0];
-    const d = google.visualization.arrayToDataTable([['Date','Best kg']].concat(l.points.map(p => [shortDate(p.Date), p.Value])));
-    const o = baseOpts(); o.colors = [cssVar('--s-gym')]; o.legend = { position:'none' }; o.lineWidth = 2; o.pointSize = 8; delete o.vAxis.minValue; o.chartArea.top = 14;
-    new google.visualization.LineChart(el('chLift')).draw(d, o);
-  }
+function historyTable(hist){
+  return hist.length ? `<table>${hist.map(h => `<tr><td>${tag(h.Type)} ${prettyDate(h.Date)}<div class="muted">${esc(h.FocusAreas)}${h.Notes ? ' - ' + esc(h.Notes) : ''}</div></td>
+    <td class="right"><span class="pill ${h.Status==='Absent'?'red':h.Status==='Excused'?'gray':''}">${esc(h.Status)}</span>
+    ${h.Rating !== null || h.RPE ? `<div class="note">${h.Rating !== null ? 'Rating ' + h.Rating : ''}${h.Rating !== null && h.RPE ? ', ' : ''}${h.RPE ? 'Effort ' + h.RPE : ''}</div>` : ''}</td></tr>`).join('')}</table>`
+    : '<p class="muted">No sessions since day one yet.</p>';
 }
-function showProgress(P, adminView, backHtml){
+/** Fallback for players without monitoring data (e.g. archived). */
+function progressBasicHtml(P){
+  return `<div class="card"><h2 style="margin:0">${esc(P.player.Name)}</h2><div class="muted">${esc(P.player.Status)} player</div></div>
+    <section class="card"><h2>All sessions (${P.history.length})</h2>${historyTable(P.history)}</section>`;
+}
+
+function drawAnalytics(P){
+  const M = P.monitoring; if(!M || !window.Chart) return;
+  const wk = M.weeks, labels = wk.map(w => shortDate(w.Week));
+  const red = C_GROUND(), blue = C_GYM(), ref = C_REF();
+  mkChart('chRoll', 'line', { labels, datasets:[
+      { label:'This player', data:wk.map(w => w.Rolling4), borderColor:red, backgroundColor:red, borderWidth:2, pointRadius:4, tension:.25, spanGaps:true },
+      { label:'Squad average', data:wk.map(w => w.SquadRolling4), borderColor:ref, backgroundColor:ref, borderWidth:2, borderDash:[6,4], pointRadius:0, tension:.25, spanGaps:true }] },
+    { scales:{ y:{ max:100, ticks:{ callback:x => x + '%' } } } });
+  mkChart('chLoad', 'bar', { labels, datasets:[
+      { label:'Gym', data:wk.map(w => w.GymLoad), backgroundColor:blue, borderRadius:4, borderSkipped:'start', stack:'l' },
+      { label:'Ground', data:wk.map(w => w.GroundLoad), backgroundColor:red, borderRadius:4, borderSkipped:'start', stack:'l' }] },
+    { scales:{ x:{ stacked:true }, y:{ stacked:true, title:{ display:true, text:'AU', color:ref } } } });
+  const acwr = wk.map(w => w.ACWR);
+  mkChart('chAcwr', 'line', { labels, datasets:[{ label:'ACWR', data:acwr, borderColor:red, backgroundColor:red, borderWidth:2, pointRadius:4, spanGaps:true, tension:.2 }] },
+    { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, suggestedMax:2 } } },
+    [bandsPlugin([{ from:0.8, to:1.3, color:'rgba(29,127,69,.14)' }, { from:1.5, to:5, color:'rgba(225,6,0,.10)' }])]);
+  mkChart('chWell', 'line', { labels, datasets:[
+      { label:'Wellness', data:wk.map(w => w.Wellness), borderColor:blue, backgroundColor:blue, borderWidth:2, pointRadius:4, spanGaps:true, tension:.25 },
+      { label:'Own normal', data:wk.map(() => M.WellnessBase), borderColor:ref, borderDash:[6,4], borderWidth:2, pointRadius:0 }] },
+    { scales:{ y:{ beginAtZero:false, min:1, max:5 } } });
+  P.tests.forEach((t, i) => {
+    if(t.points.length < 2) return;
+    mkChart('chTest' + i, 'line', { labels:t.points.map(p => shortDate(p.Date)), datasets:[{ label:t.Exercise + ' (' + t.Unit + ')', data:t.points.map(p => p.Value),
+      borderColor:red, backgroundColor:red, borderWidth:2, pointRadius:5, tension:.2 }] },
+      { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:false, reverse:t.Better === 'Lower' } } });
+  });
+  const relKeys = Object.keys(M.rel || {});
+  if(relKeys.length){
+    const dates = [...new Set([].concat(...relKeys.map(k => M.rel[k].map(p => p.Date))))].sort();
+    const pal = [blue, red, cssVar('--c-3')];
+    mkChart('chRel', 'line', { labels:dates.map(shortDate), datasets:relKeys.slice(0,3).map((k, i) => ({ label:k + ' x body weight',
+      data:dates.map(d => { const p = M.rel[k].find(x => x.Date === d); return p ? p.Value : null; }), borderColor:pal[i], backgroundColor:pal[i], borderWidth:2, pointRadius:4, spanGaps:true })) },
+      { scales:{ y:{ beginAtZero:false } } });
+  }
+  if(M.e1rm.length){
+    const e = M.e1rm.find(x => x.Exercise === S.e1Ex) || M.e1rm[0]; S.e1Ex = e.Exercise;
+    mkChart('chE1', 'line', { labels:e.points.map(p => shortDate(p.Date)), datasets:[{ label:e.Exercise + ' estimated 1RM (kg)', data:e.points.map(p => p.Value),
+      borderColor:blue, backgroundColor:e.points.map(p => p.PB ? red : blue), pointRadius:e.points.map(p => p.PB ? 6 : 3), borderWidth:2, tension:.2 }] },
+      { plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:false } } });
+  }
+  mkChart('chVol', 'bar', { labels, datasets:[{ label:'Volume (kg)', data:wk.map(w => w.Volume), backgroundColor:blue, borderRadius:4, borderSkipped:'start' }] },
+    { plugins:{ legend:{ display:false } } });
+  if(M.percentiles.length >= 3) drawRadar('chRadar', [{ name:P.player.Name.split(' ')[0], pct:M.percentiles, color:red }]);
+}
+
+function drawRadar(id, people){
+  const labels = people[0].pct.map(p => p.Label);
+  const ink = cssVar('--ink2'), line = cssVar('--line');
+  const sets = people.map(pp => ({ label:pp.name, data:labels.map(l => { const x = pp.pct.find(q => q.Label === l); return x ? x.Percentile : null; }),
+    borderColor:pp.color, backgroundColor:pp.color + '33', borderWidth:2, pointRadius:3, pointBackgroundColor:pp.color }));
+  sets.push({ label:'Squad middle (50)', data:labels.map(() => 50), borderColor:C_REF(), borderDash:[5,4], borderWidth:1.5, pointRadius:0, backgroundColor:'transparent' });
+  mkChart(id, 'radar', { labels, datasets:sets }, { layout:{ padding:4 }, interaction:{ mode:'nearest', intersect:true }, scales:{ x:{ display:false }, y:{ display:false },
+    r:{ min:0, max:100, ticks:{ display:false, stepSize:25 }, grid:{ color:line }, angleLines:{ color:line }, pointLabels:{ color:ink, font:{ family:'Inter', size:11 } } } } });
+}
+
+function showAnalytics(P, adminView, headHtml){
+  destroyCharts();
   S.curProg = P;
-  if(!S.liftEx && P.lifts.length) S.liftEx = P.lifts[0].Exercise;
-  $('#app').innerHTML = (backHtml || '') + progressHtml(P, adminView);
-  S.drawCharts = () => drawProgressCharts(P); loadCharts();
+  if(P.monitoring && P.monitoring.e1rm.length && !P.monitoring.e1rm.find(e => e.Exercise === S.e1Ex)) S.e1Ex = P.monitoring.e1rm[0].Exercise;
+  $('#app').innerHTML = (headHtml || '') + analyticsHtml(P, adminView);
+  S.drawCharts = () => drawAnalytics(P); loadCharts();
+}
+
+/* captain: open any player's analysis, with previous / next player */
+async function openPlayerProgress(pid){
+  const my = ++S.seq;
+  const P = await api('getPlayerProgress', S.token, pid);
+  if(my !== S.seq) return;
+  S.view = 'progress'; S.viewProg = P; S.viewPid = pid;
+  window.scrollTo(0,0); renderProgressView();
+}
+function playerOrder(){ return activePlayersByBatch().reduce((a, [b, ps]) => a.concat(ps.map(p => p.PlayerID)), []); }
+function renderProgressView(){
+  const order = playerOrder(), i = order.indexOf(S.viewPid);
+  const prev = i > 0 ? order[i-1] : null, next = i >= 0 && i < order.length - 1 ? order[i+1] : null;
+  showAnalytics(S.viewProg, true, `<div class="row navrow"><button class="btn sm" onclick="S.view=null;destroyCharts();render()">Back</button>
+    <span class="muted" style="text-align:center">${i >= 0 ? (i+1) + ' of ' + order.length : ''}</span>
+    <button class="btn sm" ${prev ? `onclick="openPlayerProgress('${prev}')"` : 'disabled'}>Previous</button>
+    <button class="btn sm" ${next ? `onclick="openPlayerProgress('${next}')"` : 'disabled'}>Next</button></div>`);
 }
 
 /* =========================================================
@@ -557,7 +734,7 @@ function renderAdminHome(){
     <section class="card alert-card"><h2>Missing practice</h2>
       ${d.alerts.length ? `<p class="muted">Not attended for more than ${st.MissingDays} days and missed at least one session since.</p>
       <table>${d.alerts.map(a => `<tr><td><b>${esc(a.Name)}</b> <span class="muted">${esc(a.Batch)}</span><div class="note">${a.LastAttended ? 'Last came ' + prettyDate(a.LastAttended) : 'Not attended yet'} - ${a.Missed} missed${a.Phone ? ' - ' + esc(a.Phone) : ''}</div></td>
-        <td class="right"><span class="pill red">${a.Days} days</span><div><button class="btn sm" style="margin-top:4px" onclick="openPlayerProgress('${a.PlayerID}')">Progress</button></div></td></tr>`).join('')}</table>
+        <td class="right"><span class="pill red">${a.Days} days</span><div><button class="btn sm" style="margin-top:4px" onclick="openPlayerProgress('${a.PlayerID}')">Analysis</button></div></td></tr>`).join('')}</table>
       <button class="btn primary block" onclick="showMsg('Practice reminder', S.data.alertMessage)">WhatsApp reminder message</button>`
       : '<p class="muted">Everyone has been at practice recently.</p>'}
     </section>
@@ -593,15 +770,6 @@ async function resetPw(pid){
   S.data = r.data; setTab(S.tab);
   showMsg('Send this to the player', r.message);
 }
-async function openPlayerProgress(pid){
-  const P = await api('getPlayerProgress', S.token, pid);
-  S.view = 'progress'; S.viewProg = P; S.liftEx = null; S.drawCharts = null;
-  window.scrollTo(0,0); renderProgressView();
-}
-function renderProgressView(){
-  showProgress(S.viewProg, true, `<button class="btn sm" onclick="S.view=null;render()">Back</button><div style="height:10px"></div>`);
-}
-
 /* =========================================================
    ADMIN - Sessions (plan & publish)
    ========================================================= */
@@ -781,7 +949,7 @@ function updateCounts(){
 async function saveAttend(){
   const a = S.att;
   const r = await api('saveAttendance', S.token, a.session.SessionID, a.map, a.focus, $('#aNotes').value);
-  S.data = r.data; a.session.Notes = $('#aNotes').value;
+  S.data = r.data; S.squad = null; a.session.Notes = $('#aNotes').value;
   showMsg('Attendance saved', r.message);
 }
 function renderRateBox(){
@@ -829,7 +997,7 @@ function renderPlayers(){
         <div class="note">${esc(p.Phone) || 'no phone'}${p.Active ? ' - WhatsApp group: ' + (p.InWhatsApp ? 'yes' : 'no') : ''}${p.Joined ? ' - joined ' + shortDate(p.Joined) : ''}</div></td>
         <td class="right" style="white-space:nowrap">
           ${p.Status === 'Pending' ? `<button class="btn sm primary" onclick="approve('${p.PlayerID}',true)">Approve</button>` : ''}
-          ${p.Active ? `<button class="btn sm primary" onclick="openPlayerProgress('${p.PlayerID}')">Progress</button>` : ''}
+          ${p.Active ? `<button class="btn sm primary" onclick="openPlayerProgress('${p.PlayerID}')">Analysis</button>` : ''}
           <button class="btn sm" onclick="editPlayer('${p.PlayerID}')">Edit</button>
           ${p.Active ? `<button class="btn sm" onclick="resetPw('${p.PlayerID}')">Password</button>` : ''}</td></tr>`).join('')}
     </table></div>`).join('') || '<div class="empty">No players here.</div>'}
@@ -885,7 +1053,7 @@ async function savePlayerModal(id){
    ADMIN - Monthly max tests
    ========================================================= */
 async function renderTests(){
-  if(!S.tests){ $('#app').innerHTML = '<div class="empty">Loading tests...</div>'; S.tests = await api('getTests', S.token); }
+  if(!S.tests){ const my = S.seq; $('#app').innerHTML = '<div class="empty">Loading tests...</div>'; S.tests = await api('getTests', S.token); if(my !== S.seq) return; }
   const T = S.tests, ex = T.exercises;
   if(!S.tEx || !ex.find(x => x.Exercise === S.tEx)) S.tEx = ex.length ? ex[0].Exercise : '';
   if(!S.tDate) S.tDate = S.data.today || todayStr();
@@ -933,7 +1101,7 @@ async function renderTests(){
 async function saveTestValues(){
   const vals = {};
   document.querySelectorAll('.tval').forEach(i => { vals[i.dataset.pid] = i.value; });
-  S.tests = await api('saveMaxTests', S.token, S.tDate, S.tEx, vals);
+  S.tests = await api('saveMaxTests', S.token, S.tDate, S.tEx, vals); S.squad = null;
   renderTests(); toast(S.tEx + ' results saved');
 }
 async function addTest(){
@@ -964,7 +1132,7 @@ function playVideo(id){
 
 /* ---- Admin videos ---- */
 async function renderAdminVideos(){
-  if(!S.videos){ $('#app').innerHTML = '<div class="empty">Loading videos...</div>'; S.videos = await api('getVideos', S.token); }
+  if(!S.videos){ const my = S.seq; $('#app').innerHTML = '<div class="empty">Loading videos...</div>'; S.videos = await api('getVideos', S.token); if(my !== S.seq) return; }
   const active = S.data.players.filter(p => p.Active);
   if(!S.vBatches) S.vBatches = [];
   $('#app').innerHTML = `
@@ -1023,14 +1191,111 @@ async function markWatched(id, yes){
 }
 
 /* =========================================================
-   ADMIN - Analysis
+   ADMIN - Analysis: Squad monitoring | Team | Compare players
    ========================================================= */
 function renderAnalysis(){
+  if(!S.anaSeg) S.anaSeg = 'Squad';
+  const seg = `<div class="seg" style="margin-bottom:12px">${['Squad','Team','Compare'].map(s => `<button class="${S.anaSeg===s?'on':''}" onclick="S.anaSeg='${s}';destroyCharts();render()">${s}</button>`).join('')}</div>`;
+  if(S.anaSeg === 'Squad') return renderSquad(seg);
+  if(S.anaSeg === 'Compare') return renderCompare(seg);
+  renderTeam(seg);
+}
+
+/* ---- Squad monitoring (traffic lights) ---- */
+function spark(vals){
+  const pts = vals.map((v, i) => [i, v]).filter(p => p[1] !== null);
+  if(pts.length < 2) return '';
+  const w = 64, h = 20, n = Math.max(vals.length - 1, 1);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + (p[0] / n * w).toFixed(1) + ',' + (h - p[1] / 100 * h).toFixed(1)).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
+}
+function dotv(level, text){ return `<span class="dv l-${level}"><span class="dot"></span>${text}</span>`; }
+async function renderSquad(seg){
+  const my = S.seq;
+  if(!S.squad){ $('#app').innerHTML = seg + '<div class="empty">Loading squad...</div>'; const q = await api('getSquadOverview', S.token); S.squad = q; if(my !== S.seq) return; }
+  const Q = S.squad, sortBy = S.sqSort || 'flags';
+  const rows = Q.rows.slice().sort((a, b) => {
+    const val = r => sortBy === 'name' ? r.Name : sortBy === 'flags' ? -r.flags : sortBy === 'att' ? (r.Att28 === null ? 999 : r.Att28)
+                   : sortBy === 'acwr' ? -(r.ACWR || 0) : sortBy === 'test' ? -(r.TestChange === null ? -999 : r.TestChange) : (r.DaysSince === null ? -1 : -r.DaysSince);
+    const x = val(a), y = val(b); return typeof x === 'string' ? x.localeCompare(y) : x - y;
+  });
+  const T = Q.team;
+  $('#app').innerHTML = seg + `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${T.Players}</div><div class="l">Active players</div></div>
+      <div class="kpi"><div class="v">${v(T.Att28)}${T.Att28===null?'':'%'}</div><div class="l">Squad attendance, last 4 weeks</div></div>
+      <div class="kpi"><div class="v">${Q.rows.filter(r => r.flags).length}</div><div class="l">Players with a warning</div></div>
+      <div class="kpi"><div class="v">${sign(T.TestChange,'%')}</div><div class="l">Avg max-test progress</div></div>
+    </div>
+    <section class="card"><div class="sess-h"><h2 style="margin:0">Squad monitoring</h2>
+      <select style="max-width:170px" onchange="S.sqSort=this.value;render()">${[['flags','Most warnings'],['att','Lowest attendance'],['acwr','Highest load'],['test','Best progress'],['days','Longest absent'],['name','Name']].map(([k,l]) => `<option value="${k}" ${sortBy===k?'selected':''}>${l}</option>`).join('')}</select></div>
+      <p class="muted">Green = good, amber = watch, red = alert. Tap a player for the full analysis.</p>
+      <div class="tablewrap"><table class="squad"><tr><th>Player</th><th>Att. 4 wk</th><th>Trend</th><th>Load</th><th>Wellness</th><th>Tests</th><th class="n">Last</th></tr>
+      ${rows.map(r => `<tr onclick="openPlayerProgress('${r.PlayerID}')" style="cursor:pointer">
+        <td><b>${esc(r.Name)}</b><div class="note">${esc(r.Batch)} Batch${r.flags ? ' - ' + r.flags + ' warning' + (r.flags > 1 ? 's' : '') : ''}</div></td>
+        <td>${dotv(r.status.Attendance, r.Att28 === null ? '-' : r.Att28 + '%')}</td>
+        <td class="trend">${spark(r.spark)}<div class="note">${r.Att28 !== null && r.AttPrev28 !== null ? sign(r.Att28 - r.AttPrev28) : ''}</div></td>
+        <td>${dotv(r.status.Load, r.ACWR === null ? '-' : r.ACWR)}</td>
+        <td>${dotv(r.status.Wellness, r.WellnessDrop === null ? '-' : (r.WellnessDrop > 0 ? '-' + r.WellnessDrop + '%' : 'OK'))}</td>
+        <td>${dotv(r.status.Strength, sign(r.TestChange, '%'))}</td>
+        <td class="n">${r.DaysSince === null ? '-' : r.DaysSince + 'd'}</td></tr>`).join('')}</table></div>
+      <p class="note">Load = acute:chronic workload ratio (0.8-1.3 safe). Wellness = drop vs the player's own normal. Tests = average max-test change. Last = days since last session.</p>
+      <button class="btn sm" onclick="S.squad=null;render()">Refresh</button>
+    </section>`;
+  S._seg = seg;
+}
+
+/* ---- Compare two players ---- */
+async function renderCompare(seg){
+  const act = S.data.players.filter(p => p.Active);
+  if(!S.cmp) S.cmp = { a: act[0] && act[0].PlayerID, b: act[1] && act[1].PlayerID, data:{} };
+  const opt = sel => act.map(p => `<option value="${p.PlayerID}" ${p.PlayerID===sel?'selected':''}>${esc(p.Name)} (${esc(p.Batch)})</option>`).join('');
+  $('#app').innerHTML = seg + `<section class="card"><h2>Compare two players</h2>
+    <div class="grid2"><div><label>Player 1</label><select onchange="S.cmp.a=this.value;render()">${opt(S.cmp.a)}</select></div>
+    <div><label>Player 2</label><select onchange="S.cmp.b=this.value;render()">${opt(S.cmp.b)}</select></div></div></section>
+    <div id="cmpOut"><div class="empty">Loading...</div></div>`;
+  S._seg = seg;
+  if(!S.cmp.a || !S.cmp.b) return;
+  const my = S.seq;
+  for(const k of ['a','b']) if(!S.cmp.data[S.cmp[k]]) S.cmp.data[S.cmp[k]] = await api('getPlayerProgress', S.token, S.cmp[k]);
+  if(my !== S.seq || !$('#cmpOut')) return;
+  const A = S.cmp.data[S.cmp.a], B = S.cmp.data[S.cmp.b];
+  if(!A.monitoring || !B.monitoring){ $('#cmpOut').innerHTML = '<div class="empty">Both players need monitoring data.</div>'; return; }
+  const ma = A.monitoring, mb = B.monitoring, ta = A.totals, tb = B.totals;
+  const row = (l, x, y, suf) => `<tr><td>${l}</td><td class="n">${v(x)}${x!==null&&x!==undefined&&suf?suf:''}</td><td class="n">${v(y)}${y!==null&&y!==undefined&&suf?suf:''}</td></tr>`;
+  const test = (P, n) => { const t = P.tests.find(x => x.Exercise === n); return t ? t.Latest : null; };
+  const names = [...new Set(A.tests.concat(B.tests).filter(t => t.Better !== 'Track').map(t => t.Exercise))];
+  $('#cmpOut').innerHTML = `
+    <section class="card"><h2>Squad profile</h2><div id="chCmpRadar" class="chart radar"></div></section>
+    <section class="card"><h2>Key numbers</h2><table>
+      <tr><th></th><th class="n">${esc(A.player.Name.split(' ')[0])}</th><th class="n">${esc(B.player.Name.split(' ')[0])}</th></tr>
+      ${row('Attendance since day one', ta.Attendance, tb.Attendance, '%')}${row('Attendance last 4 weeks', ma.Att28, mb.Att28, '%')}
+      ${row('Gym sessions', ta.GymCount, tb.GymCount)}${row('Ground sessions', ta.GroundCount, tb.GroundCount)}
+      ${row('Current streak', ta.Streak, tb.Streak)}${row('ACWR', ma.ACWR, mb.ACWR)}${row('Load last 7 days (AU)', ma.Load7, mb.Load7)}
+      ${row('Wellness (1-5)', ma.Wellness, mb.Wellness)}${row('Body weight', ma.BodyWeight, mb.BodyWeight, ' kg')}
+      ${names.map(n => row(n + ' (latest)', test(A, n), test(B, n))).join('')}
+    </table></section>
+    <section class="card"><h2>Rolling 4-week attendance</h2><div id="chCmpRoll" class="chart"></div></section>`;
+  S.drawCharts = () => {
+    const red = C_GROUND(), blue = C_GYM();
+    drawRadar('chCmpRadar', [{ name:A.player.Name.split(' ')[0], pct:ma.percentiles, color:blue }, { name:B.player.Name.split(' ')[0], pct:mb.percentiles, color:red }]);
+    const weeks = [...new Set(ma.weeks.concat(mb.weeks).map(w => w.Week))].sort();
+    const ser = (M) => weeks.map(w => { const x = M.weeks.find(y => y.Week === w); return x ? x.Rolling4 : null; });
+    mkChart('chCmpRoll', 'line', { labels:weeks.map(shortDate), datasets:[
+      { label:A.player.Name.split(' ')[0], data:ser(ma), borderColor:blue, backgroundColor:blue, borderWidth:2, pointRadius:3, spanGaps:true, tension:.25 },
+      { label:B.player.Name.split(' ')[0], data:ser(mb), borderColor:red, backgroundColor:red, borderWidth:2, pointRadius:3, spanGaps:true, tension:.25 }] },
+      { scales:{ y:{ max:100, ticks:{ callback:x => x + '%' } } } });
+  };
+  destroyCharts(); loadCharts();
+}
+
+/* ---- Team analysis (period, bands, focus areas, batches) ---- */
+function renderTeam(seg){
   const today = S.data.today || todayStr();
   const season = S.data.settings.SeasonStart || '';
   if(!S.anaRange){ const f = addDays(today, -90); S.anaRange = { from: f > season ? f : season, to: today }; }
   const A = S.ana;
-  $('#app').innerHTML = `
+  $('#app').innerHTML = seg + `
     <section class="card"><div class="grid2">
       <div><label>From</label><input type="date" id="anFrom" value="${S.anaRange.from}"></div>
       <div><label>To</label><input type="date" id="anTo" value="${S.anaRange.to}"></div></div>
@@ -1050,7 +1315,7 @@ function anaPreset(n){
 }
 async function runAnalysis(){
   if($('#anFrom')) S.anaRange = { from:$('#anFrom').value, to:$('#anTo').value };
-  S.ana = await api('getAnalysis', S.token, S.anaRange.from, S.anaRange.to); render();
+  S.ana = await api('getAnalysis', S.token, S.anaRange.from, S.anaRange.to); destroyCharts(); render();
 }
 async function exportAna(){
   const url = await api('exportAnalysis', S.token, S.anaRange.from, S.anaRange.to);
@@ -1082,7 +1347,7 @@ function anaHtml(A){
       <div class="kpi"><div class="v">${T.Players}</div><div class="l">Active players</div></div>
     </div>
     <section class="card"><h2>Attendance bands - does turning up pay off?</h2>
-      <p class="muted">Focus score = ${Math.round(A.weights.participation*100)}% participation + ${Math.round(A.weights.rating*100)}% captain rating. Max test change = first to latest test in the period (positive = better). Rating and gym-log changes compare the first and second half of the period.</p>
+      <p class="muted">Focus score = ${Math.round(A.weights.participation*100)}% participation + ${Math.round(A.weights.rating*100)}% captain rating. Max test change = first to latest test in the period (positive = better).</p>
       <div class="tablewrap"><table><tr><th>Band</th><th>Attendance</th><th class="n">Players</th><th class="n">Avg att.</th><th class="n">Focus</th><th class="n">Max test chg</th><th class="n">Rating chg</th><th class="n">Lift chg</th></tr>
       ${A.bands.map(bandRow).join('')}</table></div>
       <div id="chBands" class="chart"></div>
@@ -1098,7 +1363,7 @@ function anaHtml(A){
       <div class="tablewrap"><table><tr><th>Batch</th><th class="n">Players</th><th class="n">Attendance</th><th class="n">Gym</th><th class="n">Ground</th></tr>
       ${A.batches.map(b => `<tr><td>${esc(b.Batch)}</td><td class="n">${b.Players}</td><td class="n">${v(b.Attendance)}%</td><td class="n">${v(b.Gym)}%</td><td class="n">${v(b.Ground)}%</td></tr>`).join('')}</table></div>
     </section>
-    <section class="card"><h2>Players</h2><p class="muted">Tap a player for their full progress.</p>
+    <section class="card"><h2>Players</h2><p class="muted">Tap a player for the full analysis.</p>
       <div class="tablewrap"><table><tr><th>Name</th><th>Batch</th><th class="n">Att.</th><th class="n">Focus</th><th class="n">Max test chg</th><th class="n">Rating chg</th><th class="n">Lift chg</th><th>Band</th></tr>
       ${A.players.map(p => `<tr onclick="openPlayerProgress('${p.PlayerID}')" style="cursor:pointer"><td>${esc(p.Name)}</td><td>${esc(p.Batch)}</td>
         <td class="n">${v(p.Attendance)}%</td><td class="n"><b>${v(p.FocusScore)}</b></td><td class="n">${sign(p.TestChange,'%')}</td>
@@ -1114,21 +1379,14 @@ function insight(A){
   return s + '.';
 }
 function drawAnaCharts(A){
-  if(!window.google || !google.visualization) return;
-  const gym = cssVar('--s-gym'), ground = cssVar('--s-ground'), red = cssVar('--red');
-  const el = id => document.getElementById(id);
-  if(el('chBands')){
-    const d = google.visualization.arrayToDataTable([['Band','Avg focus score',{role:'annotation'}]]
-      .concat(A.bands.map(b => [b.Band + ' (' + b.Players + ')', b.AvgFocusScore || 0, b.AvgFocusScore === null ? '' : String(b.AvgFocusScore)])));
-    const o = baseOpts(); o.colors = [red]; o.legend = { position:'none' }; o.bar = { groupWidth:'45%' }; o.vAxis.maxValue = 100;
-    o.title = 'Average focus score by attendance band'; o.titleTextStyle = { color:cssVar('--ink'), fontSize:13 };
-    new google.visualization.ColumnChart(el('chBands')).draw(d, o);
-  }
-  if(el('chWeekly') && A.weekly.length){
-    const d = google.visualization.arrayToDataTable([['Week','Gym %','Ground %']].concat(A.weekly.map(w => [shortDate(w.Week), w.Gym, w.Ground])));
-    const o = baseOpts(); o.colors = [gym, ground]; o.lineWidth = 2; o.pointSize = 8; o.vAxis.maxValue = 100; o.interpolateNulls = true; o.focusTarget = 'category';
-    new google.visualization.LineChart(el('chWeekly')).draw(d, o);
-  }
+  if(!window.Chart) return;
+  const red = C_GROUND(), blue = C_GYM();
+  mkChart('chBands', 'bar', { labels:A.bands.map(b => b.Band + ' (' + b.Players + ')'), datasets:[{ label:'Avg focus score', data:A.bands.map(b => b.AvgFocusScore || 0),
+    backgroundColor:red, borderRadius:4, borderSkipped:'start', maxBarThickness:56 }] }, { plugins:{ legend:{ display:false } }, scales:{ y:{ max:100 } } });
+  if(A.weekly.length) mkChart('chWeekly', 'line', { labels:A.weekly.map(w => shortDate(w.Week)), datasets:[
+    { label:'Gym %', data:A.weekly.map(w => w.Gym), borderColor:blue, backgroundColor:blue, borderWidth:2, pointRadius:4, spanGaps:true, tension:.25 },
+    { label:'Ground %', data:A.weekly.map(w => w.Ground), borderColor:red, backgroundColor:red, borderWidth:2, pointRadius:4, spanGaps:true, tension:.25 }] },
+    { scales:{ y:{ max:100, ticks:{ callback:x => x + '%' } } } });
 }
 
 /* =========================================================
@@ -1247,7 +1505,7 @@ async function delLog(id){ if(!confirm('Delete this entry?')) return; S.pdata = 
 /* =========================================================
    PLAYER - Progress & Me
    ========================================================= */
-function renderMyProgress(){ showProgress(S.pdata.progress, false); }
+function renderMyProgress(){ showAnalytics(S.pdata.progress, false); }
 
 function renderMe(){
   const d = S.pdata, me = d.me;
